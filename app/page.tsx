@@ -707,11 +707,11 @@ Tip: I automatically detect and install npm packages from your code imports (lik
               });
             }, 1000);
           }
-        } else if (data.warning) {
-          log(data.warning, 'error');
+        } else if (results.warning) {
+          log(results.warning, 'error');
           
-          if (data.missingImports && data.missingImports.length > 0) {
-            const missingList = data.missingImports.join(', ');
+          if (results.missingImports && results.missingImports.length > 0) {
+            const missingList = results.missingImports.join(', ');
             addChatMessage(
               `Ask me to "create the missing components: ${missingList}" to fix these import errors.`,
               'system'
