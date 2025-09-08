@@ -3,10 +3,12 @@ import { createGroq } from '@ai-sdk/groq';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createMistral } from '@ai-sdk/mistral';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { streamText } from 'ai';
 import type { SandboxState } from '@/types/sandbox';
-import { selectFilesForEdit, getFileContents, formatFilesForAI } from '@/lib/context-selector';
+import { selectFilesForEdit } from '@/lib/context-selector';
 import { executeSearchPlan, formatSearchResultsForAI, selectTargetFile } from '@/lib/file-search-executor';
 import { FileManifest } from '@/types/file-manifest';
 import type { ConversationState, ConversationMessage, ConversationEdit } from '@/types/conversation';
@@ -29,8 +31,21 @@ const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const mistral = createMistral({
+  apiKey: process.env.MISTRAL_API_KEY,
+});
+
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+const openaiCompatible = createOpenAICompatible({
+  name: 'openai-compatible',
+  apiKey: process.env.OPENAI_COMPATIBLE_API_KEY || '',
+  baseURL: process.env.OPENAI_COMPATIBLE_BASE_URL || 'https://api.openai.com/v1',
+  headers: {
+    'X-Custom-Header': process.env.OPENAI_COMPATIBLE_HEADER || '',
+  },
 });
 
 // Helper function to analyze user preferences from conversation history
@@ -115,16 +130,16 @@ export async function POST(request: NextRequest) {
     };
     global.conversationState.context.messages.push(userMessage);
     
-    // Clean up old messages to prevent unbounded growth
-    if (global.conversationState.context.messages.length > 20) {
-      // Keep only the last 15 messages
-      global.conversationState.context.messages = global.conversationState.context.messages.slice(-15);
+    // Clean up old messages to prevent unbounded growth (increased for large context models)
+    if (global.conversationState.context.messages.length > 50) {
+      // Keep more messages for better context with GPT-5-chat
+      global.conversationState.context.messages = global.conversationState.context.messages.slice(-40);
       console.log('[generate-ai-code-stream] Trimmed conversation history to prevent context overflow');
     }
     
-    // Clean up old edits
-    if (global.conversationState.context.edits.length > 10) {
-      global.conversationState.context.edits = global.conversationState.context.edits.slice(-8);
+    // Clean up old edits (increased for better context)
+    if (global.conversationState.context.edits.length > 25) {
+      global.conversationState.context.edits = global.conversationState.context.edits.slice(-20);
     }
     
     // Debug: Show a sample of actual file content
@@ -493,8 +508,8 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
           
           conversationContext = `\n\n## Conversation History (Recent)\n`;
           
-          // Include only the last 3 edits to save context
-          const recentEdits = global.conversationState.context.edits.slice(-3);
+          // Include more edits for better context (especially for large models)
+          const recentEdits = global.conversationState.context.edits.slice(-10);
           if (recentEdits.length > 0) {
             console.log('[generate-ai-code-stream] Including', recentEdits.length, 'recent edits in context');
             conversationContext += `\n### Recent Edits:\n`;
@@ -504,7 +519,7 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
           }
           
           // Include recently created files - CRITICAL for preventing duplicates
-          const recentMsgs = global.conversationState.context.messages.slice(-5);
+          const recentMsgs = global.conversationState.context.messages.slice(-20);
           const recentlyCreatedFiles: string[] = [];
           recentMsgs.forEach(msg => {
             if (msg.metadata?.editedFiles) {
@@ -534,7 +549,7 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
           }
           
           // Include only last 2 major changes
-          const majorChanges = global.conversationState.context.projectEvolution.majorChanges.slice(-2);
+          const majorChanges = global.conversationState.context.projectEvolution.majorChanges.slice(-8);
           if (majorChanges.length > 0) {
             conversationContext += `\n### Recent Changes:\n`;
             majorChanges.forEach(change => {
@@ -560,6 +575,15 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
 
 🚨 CRITICAL SYSTEM RULE 🚨
 NEVER use bash commands, shell commands, or ask to see files. All necessary files are provided in the context below. Work ONLY with the provided context and generate code accordingly.
+
+🧠 UNDERSTANDING FIRST RULE 🧠
+Before generating code, you MUST:
+1. Carefully read and understand what the user is asking for
+2. Review the existing application state in the provided context
+3. Identify exactly what files need to be changed and how
+4. Then generate the appropriate code changes
+
+Do NOT rush to generate code without understanding the full context and user request.
 ${conversationContext}
 
 🚨 CRITICAL RULES - YOUR MOST IMPORTANT INSTRUCTIONS:
@@ -1030,70 +1054,125 @@ CRITICAL: When files are provided in the context:
           
           // Include current file contents from backend cache
           if (hasBackendFiles) {
-            // If we have edit context, use intelligent file selection
-            if (editContext && editContext.primaryFiles.length > 0) {
-              contextParts.push('\nEXISTING APPLICATION - TARGETED EDIT MODE');
-              contextParts.push(`\n${editContext.systemPrompt || enhancedSystemPrompt}\n`);
+            const fileEntries = Object.entries(backendFiles);
+            console.log(`[generate-ai-code-stream] Including ALL files in context: ${fileEntries.length} files`);
+            
+            // Log context size for debugging
+            const totalContextSize = fileEntries.reduce((size, [path, fileData]) => {
+              return size + (typeof fileData.content === 'string' ? fileData.content.length : 0);
+            }, 0);
+            console.log(`[generate-ai-code-stream] Total context size: ${Math.round(totalContextSize / 1024)}KB`);
+            
+            // Safety check: if context is too large, prioritize important files
+            // Note: We'll check model type later, for now use a conservative limit
+            const maxContextSize = 100000; // 100KB limit for now
+            const useSelectiveContext = totalContextSize > maxContextSize;
+            
+            if (useSelectiveContext) {
+              console.log(`[generate-ai-code-stream] Context too large (${Math.round(totalContextSize / 1024)}KB), using selective context`);
+            }
+            
+            // Use full or selective context based on size
+            if (useSelectiveContext) {
+              contextParts.push('\nEXISTING APPLICATION - SELECTIVE CONTEXT MODE (Large App)');
               
-              // Get contents of primary and context files
-              const primaryFileContents = await getFileContents(editContext.primaryFiles, global.sandboxState!.fileCache!.manifest!);
-              const contextFileContents = await getFileContents(editContext.contextFiles, global.sandboxState!.fileCache!.manifest!);
+              // Prioritize target files and important files
+              const priorityFiles = editContext?.primaryFiles || [];
+              const contextFiles = editContext?.contextFiles || [];
+              const allPriorityFiles = [...new Set([...priorityFiles, ...contextFiles])];
               
-              // Format files for AI
-              const formattedFiles = formatFilesForAI(primaryFileContents, contextFileContents);
-              contextParts.push(formattedFiles);
+              // Add remaining files up to limit
+              const remainingFiles = fileEntries
+                .filter(([path]) => !allPriorityFiles.includes(path))
+                .slice(0, 10); // Limit to 10 additional files
               
-              contextParts.push('\nIMPORTANT: Only modify the files listed under "Files to Edit". The context files are provided for reference only.');
+              const selectedFiles = [
+                ...fileEntries.filter(([path]) => allPriorityFiles.includes(path)),
+                ...remainingFiles
+              ];
+              
+              contextParts.push(`\nShowing ${selectedFiles.length} most relevant files (${fileEntries.length} total files in app)`);
+              
+              // Show full file list
+              contextParts.push('\n### All Files in App:');
+              for (const [path] of fileEntries) {
+                const isTarget = editContext?.primaryFiles.includes(path);
+                const isIncluded = selectedFiles.some(([selectedPath]) => selectedPath === path);
+                contextParts.push(`${isTarget ? '🎯 ' : isIncluded ? '📄 ' : '- '}${path}${isTarget ? ' (TARGET)' : isIncluded ? ' (INCLUDED)' : ''}`);
+              }
+              
+              // Show only selected file contents
+              contextParts.push('\n### Selected File Contents:');
+              for (const [path, fileData] of selectedFiles) {
+                const content = fileData.content;
+                if (typeof content === 'string') {
+                  const isTarget = editContext?.primaryFiles.includes(path);
+                  contextParts.push(`\n<file path="${path}"${isTarget ? ' target="true"' : ''}>\n${content}\n</file>`);
+                }
+              }
             } else {
-              // Fallback to showing all files if no edit context
-              console.log('[generate-ai-code-stream] WARNING: Using fallback mode - no edit context available');
-              contextParts.push('\nEXISTING APPLICATION - TARGETED EDIT REQUIRED');
-              contextParts.push('\nYou MUST analyze the user request and determine which specific file(s) to edit.');
-              contextParts.push('\nCurrent project files (DO NOT regenerate all of these):');
+              contextParts.push('\nEXISTING APPLICATION - FULL CONTEXT MODE');
               
-              const fileEntries = Object.entries(backendFiles);
-              console.log(`[generate-ai-code-stream] Using backend cache: ${fileEntries.length} files`);
+              // If we have edit context, highlight the targeted files
+              if (editContext && editContext.primaryFiles.length > 0) {
+                contextParts.push(`\n${editContext.systemPrompt || enhancedSystemPrompt}\n`);
+                contextParts.push(`\nTARGETED EDIT: Focus on files: ${editContext.primaryFiles.join(', ')}`);
+              } else {
+                contextParts.push('\nYou MUST analyze the user request and determine which specific file(s) to edit.');
+              }
+              
+              contextParts.push('\nCurrent project files:');
               
               // Show file list first for reference
               contextParts.push('\n### File List:');
               for (const [path] of fileEntries) {
-                contextParts.push(`- ${path}`);
+                const isTarget = editContext?.primaryFiles.includes(path);
+                contextParts.push(`${isTarget ? '🎯 ' : '- '}${path}${isTarget ? ' (TARGET)' : ''}`);
               }
               
-              // Include ALL files as context in fallback mode
-              contextParts.push('\n### File Contents (ALL FILES FOR CONTEXT):');
+              // Include ALL files as context
+              contextParts.push('\n### All File Contents:');
               for (const [path, fileData] of fileEntries) {
                 const content = fileData.content;
                 if (typeof content === 'string') {
-                  contextParts.push(`\n<file path="${path}">\n${content}\n</file>`);
+                  const isTarget = editContext?.primaryFiles.includes(path);
+                  contextParts.push(`\n<file path="${path}"${isTarget ? ' target="true"' : ''}>\n${content}\n</file>`);
                 }
               }
-              
-              contextParts.push('\n🚨 CRITICAL INSTRUCTIONS - VIOLATION = FAILURE 🚨');
-              contextParts.push('1. Analyze the user request: "' + prompt + '"');
-              contextParts.push('2. Identify the MINIMUM number of files that need editing (usually just ONE)');
-              contextParts.push('3. PRESERVE ALL EXISTING CONTENT in those files');
-              contextParts.push('4. ONLY ADD/MODIFY the specific part requested');
-              contextParts.push('5. DO NOT regenerate entire components from scratch');
-              contextParts.push('6. DO NOT change unrelated parts of any file');
-              contextParts.push('7. Generate ONLY the files that MUST be changed - NO EXTRAS');
-              contextParts.push('\n⚠️ FILE COUNT RULE:');
-              contextParts.push('- Simple change (color, text, spacing) = 1 file ONLY');
-              contextParts.push('- Adding new component = 2 files MAX (new component + parent that imports it)');
-              contextParts.push('- DO NOT exceed these limits unless absolutely necessary');
-              contextParts.push('\nEXAMPLES OF CORRECT BEHAVIOR:');
-              contextParts.push('✅ "add a chart to the hero" → Edit ONLY Hero.jsx, ADD the chart, KEEP everything else');
-              contextParts.push('✅ "change header to black" → Edit ONLY Header.jsx, change ONLY the color');
-              contextParts.push('✅ "fix spacing in footer" → Edit ONLY Footer.jsx, adjust ONLY spacing');
-              contextParts.push('\nEXAMPLES OF FAILURES:');
-              contextParts.push('❌ "change header color" → You edit Header, Footer, and App "for consistency"');
-              contextParts.push('❌ "add chart to hero" → You regenerate the entire Hero component');
-              contextParts.push('❌ "fix button" → You update 5 different component files');
-              contextParts.push('\n⚠️ FINAL WARNING:');
-              contextParts.push('If you generate MORE files than necessary, you have FAILED');
-              contextParts.push('If you DELETE or REWRITE existing functionality, you have FAILED');
-              contextParts.push('ONLY change what was EXPLICITLY requested - NOTHING MORE');
             }
+            
+            // Common instructions for both modes
+            contextParts.push('\n🚨 CRITICAL INSTRUCTIONS - VIOLATION = FAILURE 🚨');
+            contextParts.push('1. Analyze the user request: "' + prompt + '"');
+            if (editContext?.primaryFiles.length) {
+              contextParts.push('2. Focus primarily on TARGET files marked above');
+              contextParts.push('3. Use other files as context/reference only');
+            } else {
+              contextParts.push('2. Identify the MINIMUM number of files that need editing (usually just ONE)');
+            }
+            
+            // Additional behavioral guidance
+            contextParts.push('3. PRESERVE ALL EXISTING CONTENT in files');
+            contextParts.push('4. ONLY ADD/MODIFY the specific part requested');
+            contextParts.push('5. DO NOT regenerate entire components from scratch');
+            contextParts.push('6. DO NOT change unrelated parts of any file');
+            contextParts.push('7. Generate ONLY the files that MUST be changed - NO EXTRAS');
+            contextParts.push('\n⚠️ FILE COUNT RULE:');
+            contextParts.push('- Simple change (color, text, spacing) = 1 file ONLY');
+            contextParts.push('- Adding new component = 2 files MAX (new component + parent that imports it)');
+            contextParts.push('- DO NOT exceed these limits unless absolutely necessary');
+            contextParts.push('\nEXAMPLES OF CORRECT BEHAVIOR:');
+            contextParts.push('✅ "add a chart to the hero" → Edit ONLY Hero.jsx, ADD the chart, KEEP everything else');
+            contextParts.push('✅ "change header to black" → Edit ONLY Header.jsx, change ONLY the color');
+            contextParts.push('✅ "fix spacing in footer" → Edit ONLY Footer.jsx, adjust ONLY spacing');
+            contextParts.push('\nEXAMPLES OF FAILURES:');
+            contextParts.push('❌ "change header color" → You edit Header, Footer, and App "for consistency"');
+            contextParts.push('❌ "add chart to hero" → You regenerate the entire Hero component');
+            contextParts.push('❌ "fix button" → You update 5 different component files');
+            contextParts.push('\n⚠️ FINAL WARNING:');
+            contextParts.push('If you generate MORE files than necessary, you have FAILED');
+            contextParts.push('If you DELETE or REWRITE existing functionality, you have FAILED');
+            contextParts.push('ONLY change what was EXPLICITLY requested - NOTHING MORE');
           } else if (context.currentFiles && Object.keys(context.currentFiles).length > 0) {
             // Fallback to frontend-provided files if backend cache is empty
             console.log('[generate-ai-code-stream] Warning: Backend cache empty, using frontend files');
@@ -1178,12 +1257,7 @@ CRITICAL: When files are provided in the context:
         
         await sendProgress({ type: 'status', message: 'Planning application structure...' });
         
-        console.log('\n[generate-ai-code-stream] Starting streaming response...\n');
-        
-        // Track packages that need to be installed
-        const packagesToInstall: string[] = [];
-        
-        // Determine which provider to use based on model
+        // Determine which provider to use based on model - following OpenRouter PR pattern
         console.log('[generate-ai-code-stream] Model routing debug:');
         console.log('- Received model:', model);
         console.log('- OPENROUTER_API_KEY exists:', !!process.env.OPENROUTER_API_KEY);
@@ -1191,34 +1265,89 @@ CRITICAL: When files are provided in the context:
         const isAnthropic = model.startsWith('anthropic/');
         const isGoogle = model.startsWith('google/');
         const isOpenAI = model.startsWith('openai/gpt-5');
-        const isOpenRouter = model.startsWith('openrouter/');
+        const isMistral = model.startsWith('mistral/');
+        const isOpenRouter = model.startsWith('openrouter/') || model.startsWith('moonshotai/');
+        const isOpenAICompatible = model.startsWith('openai-compatible/');
+        const isGroq = model.startsWith('groq/') || model.includes('gpt-oss');
+        
+        // Determine the actual model name for use in logic
+        let actualModel;
+        if (isAnthropic) {
+          actualModel = model.replace('anthropic/', '');
+        } else if (isOpenAI) {
+          actualModel = 'gpt-5';
+        } else if (isGoogle) {
+          actualModel = model.replace('google/', '');
+        } else if (isMistral) {
+          actualModel = model.replace('mistral/', '');
+        } else if (isOpenRouter) {
+          actualModel = model.startsWith('openrouter/') ? model.replace('openrouter/', '') : model;
+        } else if (isOpenAICompatible) {
+          actualModel = model.replace('openai-compatible/', '');
+        } else if (isGroq) {
+          actualModel = model;
+        } else {
+          actualModel = model;
+        }
+        
+        // Add comprehensive understanding phase for subsequent prompts
+        if (isEdit && global.conversationState && global.conversationState.context.messages.length > 2) {
+          await sendProgress({ 
+            type: 'status', 
+            message: 'Understanding current app state and your request...' 
+          });
+          
+          // For large models, add analysis time to prevent rushing
+          if ((isOpenRouter && actualModel.includes('gpt-5-chat')) || actualModel.includes('gpt-5')) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            await sendProgress({ 
+              type: 'status', 
+              message: 'Analyzing what needs to be changed...' 
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+        
+        console.log('\n[generate-ai-code-stream] Starting streaming response...\n');
+        
+        // Track packages that need to be installed
+        const packagesToInstall: string[] = [];
         
         console.log('- isAnthropic:', isAnthropic);
         console.log('- isGoogle:', isGoogle);
         console.log('- isOpenAI:', isOpenAI);
         console.log('- isOpenRouter:', isOpenRouter);
+        console.log('- isMistral:', isMistral);
         
-        const modelProvider = isAnthropic ? anthropic : 
-                             (isOpenAI ? openai : 
-                             (isGoogle ? googleGenerativeAI : 
-                             (isOpenRouter ? openrouter : groq)));
-                             
-        const providerName = isAnthropic ? 'anthropic' : 
-                           (isOpenAI ? 'openai' : 
-                           (isGoogle ? 'google' : 
-                           (isOpenRouter ? 'openrouter' : 'groq')));
-                           
-        console.log('- Selected provider:', providerName);
+        let modelProvider;
         
-        const actualModel = isAnthropic ? model.replace('anthropic/', '') : 
-                           (model === 'openai/gpt-5') ? 'gpt-5' :
-                           (isGoogle ? model.replace('google/', '') : 
-                           (isOpenRouter ? model.replace('openrouter/', '') : model));
+        if (isAnthropic) {
+          modelProvider = anthropic;
+        } else if (isOpenAI) {
+          modelProvider = openai;
+        } else if (isGoogle) {
+          modelProvider = googleGenerativeAI;
+        } else if (isMistral) {
+          modelProvider = mistral;
+        } else if (isOpenRouter) {
+          modelProvider = openrouter;
+        } else if (isOpenAICompatible) {
+          modelProvider = openaiCompatible;
+        } else if (isGroq) {
+          modelProvider = groq;
+        } else {
+          // Default to groq for unknown models
+          console.log('[generate-ai-code-stream] Unknown model format, using groq');
+          modelProvider = groq;
+        }
                            
+        console.log('- Selected provider:', typeof modelProvider);
         console.log('- Actual model name sent to provider:', actualModel);
 
         // Make streaming API call with appropriate provider
-        let streamOptions: any = {
+        const streamOptions: any = {
           model: modelProvider(actualModel),
           messages: [
             { 
@@ -1280,7 +1409,7 @@ If you're running out of space, generate FEWER files but make them COMPLETE.
 It's better to have 3 complete files than 10 incomplete files.`
             }
           ],
-          maxTokens: 8192, // Reduce to ensure completion
+          maxTokens: isOpenRouter && actualModel.includes('gpt-5-chat') ? 40000 : 8192,
           stopSequences: [] // Don't stop early
           // Note: Neither Groq nor Anthropic models support tool/function calling in this context
           // We use XML tags for package detection instead

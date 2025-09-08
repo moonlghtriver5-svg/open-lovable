@@ -33,32 +33,20 @@ export const appConfig = {
     // Available models
     availableModels: [
       'moonshotai/kimi-k2-instruct-0905',
-      'openrouter/anthropic/claude-3.5-sonnet',
-      'openrouter/openai/gpt-4o',
-      'openrouter/meta/llama-3.3-70b-instruct',
-      'openrouter/google/gemini-2.5-pro-preview',
-      'openai/gpt-5',
-      'anthropic/claude-sonnet-4-20250514',
-      'google/gemini-2.5-pro'
+      'openrouter/openai/gpt-5-chat'
     ],
     
     // Model display names
     modelDisplayNames: {
       'moonshotai/kimi-k2-instruct-0905': 'Kimi K2 Instruct 0905',
-      'openrouter/anthropic/claude-3.5-sonnet': 'Claude 3.5 Sonnet (OR)',
-      'openrouter/openai/gpt-4o': 'GPT-4o (OR)',
-      'openrouter/meta/llama-3.3-70b-instruct': 'Llama 3.3 70B (OR)',
-      'openrouter/google/gemini-2.5-pro-preview': 'Gemini 2.5 Pro (OR)',
-      'openai/gpt-5': 'GPT-5',
-      'anthropic/claude-sonnet-4-20250514': 'Sonnet 4',
-      'google/gemini-2.5-pro': 'Gemini 2.5 Pro'
+      'openrouter/openai/gpt-5-chat': 'GPT-5 Chat (OpenRouter)'
     },
     
     // Temperature settings for non-reasoning models
     defaultTemperature: 0.7,
     
-    // Max tokens for code generation
-    maxTokens: 8000,
+    // Max tokens for code generation (increased for large models)
+    maxTokens: 40000,
     
     // Max tokens for truncation recovery
     truncationRecoveryMaxTokens: 4000,
@@ -91,11 +79,11 @@ export const appConfig = {
     // Toast notification duration (milliseconds)
     toastDuration: 3000,
     
-    // Maximum chat messages to keep in memory
-    maxChatMessages: 100,
+    // Maximum chat messages to keep in memory (increased for large context models)
+    maxChatMessages: 200,
     
-    // Maximum recent messages to send as context
-    maxRecentMessagesContext: 20,
+    // Maximum recent messages to send as context (increased for GPT-5-chat)
+    maxRecentMessagesContext: 40,
   },
   
   // Development Configuration
