@@ -1074,7 +1074,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                                       {fileInfo.name}
                                       {fileInfo.edited && (
                                         <span className={`text-[10px] px-1 rounded ${
-                                          isSelected ? 'bg-blue-400' : 'bg-orange-500 text-white'
+                                          isSelected ? 'bg-blue-400' : 'bg-blue-500 text-white'
                                         }`}>✓</span>
                                       )}
                                     </span>
@@ -1191,7 +1191,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                     <div className="bg-black border border-gray-200 rounded-lg overflow-hidden">
                       <div className="px-4 py-2 bg-gray-100 text-gray-900 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                          <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                           <span className="font-mono text-sm">Streaming code...</span>
                         </div>
                       </div>
@@ -1209,7 +1209,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                         >
                           {generationProgress.streamedCode || 'Starting code generation...'}
                         </SyntaxHighlighter>
-                        <span className="inline-block w-2 h-4 bg-orange-400 ml-1 animate-pulse" />
+                        <span className="inline-block w-2 h-4 bg-blue-400 ml-1 animate-pulse" />
                       </div>
                     </div>
                   )
@@ -1251,7 +1251,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                           >
                             {generationProgress.currentFile.content}
                           </SyntaxHighlighter>
-                          <span className="inline-block w-2 h-3 bg-orange-400 ml-4 mb-4 animate-pulse" />
+                          <span className="inline-block w-2 h-3 bg-blue-400 ml-4 mb-4 animate-pulse" />
                         </div>
                       </div>
                     )}
@@ -1345,7 +1345,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
               <div className="mx-6 mb-6">
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-to-r from-orange-500 to-orange-400 transition-all duration-300"
+                    className="h-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-300"
                     style={{
                       width: `${(generationProgress.currentComponent / Math.max(generationProgress.components.length, 1)) * 100}%`
                     }}
@@ -1387,7 +1387,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
           <div className="relative w-full h-full bg-gray-50 flex items-center justify-center">
             <div className="text-center">
               <div className="mb-8">
-                <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-500 rounded-full animate-spin mx-auto"></div>
+                <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto"></div>
               </div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">
                 {loadingStage === 'gathering' && 'Gathering website information...'}
@@ -1412,7 +1412,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
               ref={iframeRef}
               src={sandboxData.url}
               className="w-full h-full border-none"
-              title="Open Lovable Sandbox"
+              title="Fast Prototype Design Sandbox"
               allow="clipboard-write"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
             />
@@ -2414,21 +2414,21 @@ Focus on the key sections and content, making it clean and modern while preservi
           {/* Simple Sun Gradient Background */}
           <div className="absolute inset-0 bg-white overflow-hidden">
             {/* Main Sun - Pulsing */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-orange-400/50 via-orange-300/30 to-transparent rounded-full blur-[80px] animate-[sunPulse_4s_ease-in-out_infinite]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-blue-400/50 via-blue-300/30 to-transparent rounded-full blur-[80px] animate-[sunPulse_4s_ease-in-out_infinite]" />
             
             {/* Inner Sun Core - Brighter */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-gradient-radial from-yellow-300/40 via-orange-400/30 to-transparent rounded-full blur-[40px] animate-[sunPulse_4s_ease-in-out_infinite_0.5s]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-gradient-radial from-blue-300/40 via-blue-400/30 to-transparent rounded-full blur-[40px] animate-[sunPulse_4s_ease-in-out_infinite_0.5s]" />
             
             {/* Outer Glow - Subtle */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-gradient-radial from-orange-200/20 to-transparent rounded-full blur-[120px]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-gradient-radial from-blue-200/20 to-transparent rounded-full blur-[120px]" />
             
             {/* Giant Glowing Orb - Center Bottom */}
             <div className="absolute bottom-0 left-1/2 w-[800px] h-[800px] animate-[orbShrink_3s_ease-out_forwards]" style={{ transform: 'translateX(-50%) translateY(45%)' }}>
               <div className="relative w-full h-full">
-                <div className="absolute inset-0 bg-orange-600 rounded-full blur-[100px] opacity-30 animate-pulse"></div>
-                <div className="absolute inset-16 bg-orange-500 rounded-full blur-[80px] opacity-40 animate-pulse" style={{ animationDelay: '0.3s' }}></div>
-                <div className="absolute inset-32 bg-orange-400 rounded-full blur-[60px] opacity-50 animate-pulse" style={{ animationDelay: '0.6s' }}></div>
-                <div className="absolute inset-48 bg-yellow-300 rounded-full blur-[40px] opacity-60"></div>
+                <div className="absolute inset-0 bg-blue-600 rounded-full blur-[100px] opacity-30 animate-pulse"></div>
+                <div className="absolute inset-16 bg-blue-500 rounded-full blur-[80px] opacity-40 animate-pulse" style={{ animationDelay: '0.3s' }}></div>
+                <div className="absolute inset-32 bg-blue-400 rounded-full blur-[60px] opacity-50 animate-pulse" style={{ animationDelay: '0.6s' }}></div>
+                <div className="absolute inset-48 bg-blue-300 rounded-full blur-[40px] opacity-60"></div>
               </div>
             </div>
           </div>
@@ -2470,11 +2470,11 @@ Focus on the key sections and content, making it clean and modern while preservi
           {/* Main content */}
           <div className="relative z-10 h-full flex items-center justify-center px-4">
             <div className="text-center max-w-4xl min-w-[600px] mx-auto">
-              {/* Firecrawl-style Header */}
+              {/* A:E3 Proto Header */}
               <div className="text-center">
                 <h1 className="text-[2.5rem] lg:text-[3.8rem] text-center text-[#36322F] font-semibold tracking-tight leading-[0.9] animate-[fadeIn_0.8s_ease-out]">
-                  <span className="hidden md:inline">Open Lovable</span>
-                  <span className="md:hidden">Open Lovable</span>
+                  <span className="hidden md:inline">Fast Prototype Design</span>
+                  <span className="md:hidden">Fast Prototype Design</span>
                 </h1>
                 <motion.p 
                   className="text-base lg:text-lg max-w-lg mx-auto mt-2.5 text-zinc-500 text-center text-balance"
@@ -2507,7 +2507,7 @@ Focus on the key sections and content, making it clean and modern while preservi
                     }}
                     placeholder="Describe what you want to build (e.g., 'A todo app with dark mode' or 'A landing page for a coffee shop')"
                     aria-placeholder="Describe what you want to build"
-                    className="h-[3.25rem] w-full resize-none focus-visible:outline-none focus-visible:ring-orange-500 focus-visible:ring-2 rounded-[18px] text-sm text-[#36322F] px-4 pr-12 border-[.75px] border-border bg-white"
+                    className="h-[3.25rem] w-full resize-none focus-visible:outline-none focus-visible:ring-blue-500 focus-visible:ring-2 rounded-[18px] text-sm text-[#36322F] px-4 pr-12 border-[.75px] border-border bg-white"
                     style={{
                       boxShadow: '0 0 0 1px #e3e1de66, 0 1px 2px #5f4a2e14, 0 4px 6px #5f4a2e0a, 0 40px 40px -24px #684b2514',
                       filter: 'drop-shadow(rgba(249, 224, 184, 0.3) -0.731317px -0.731317px 35.6517px)'
@@ -2587,8 +2587,8 @@ Focus on the key sections and content, making it clean and modern while preservi
                             }}
                             className={`p-3 rounded-lg border transition-all ${
                               selectedStyle === style.name
-                                ? 'border-orange-400 bg-orange-50 text-gray-900 shadow-sm'
-                                : 'border-gray-200 bg-white hover:border-orange-200 hover:bg-orange-50/50 text-gray-700'
+                                ? 'border-blue-400 bg-blue-50 text-gray-900 shadow-sm'
+                                : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/50 text-gray-700'
                             }`}
                           >
                             <div className="text-sm font-medium">{style.name}</div>
@@ -2625,7 +2625,7 @@ Focus on the key sections and content, making it clean and modern while preservi
                             }
                           }}
                           placeholder="Add more details: specific features, color preferences..."
-                          className="w-full px-4 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 transition-all duration-200"
+                          className="w-full px-4 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
                         />
                       </div>
                     </div>
@@ -2959,7 +2959,7 @@ Focus on the key sections and content, making it clean and modern while preservi
                           return startIndex !== -1 ? lastContent.slice(startIndex) : lastContent;
                         })()}
                       </SyntaxHighlighter>
-                      <span className="inline-block w-2 h-3 bg-orange-400 ml-3 mb-3 animate-pulse" />
+                      <span className="inline-block w-2 h-3 bg-blue-400 ml-3 mb-3 animate-pulse" />
                     </div>
                   </motion.div>
                 )}

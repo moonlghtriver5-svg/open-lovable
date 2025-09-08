@@ -121,7 +121,7 @@
   --color-card-foreground: hsl(240 10% 3.9%);
   --color-popover: hsl(0 0% 100%);
   --color-popover-foreground: hsl(240 10% 3.9%);
-  --color-primary: hsl(25 95% 53%);
+  --color-primary: hsl(214 95% 53%);
   --color-primary-foreground: hsl(0 0% 98%);
   --color-secondary: hsl(240 4.8% 95.9%);
   --color-secondary-foreground: hsl(240 5.9% 10%);
@@ -133,7 +133,7 @@
   --color-destructive-foreground: hsl(0 0% 98%);
   --color-border: hsl(240 5.9% 90%);
   --color-input: hsl(240 5.9% 90%);
-  --color-ring: hsl(25 95% 53%);
+  --color-ring: hsl(214 95% 53%);
   
   --radius: 0.5rem;
 }
@@ -197,10 +197,10 @@
   background-color: hsl(240 10% 3.9%);
 }
 
-/* Dark mode for specific Open Lovable elements */
+/* Dark mode for specific Fast Prototype Design elements */
 .dark .bg-orange-400\/50,
-.dark .bg-orange-300\/30,
-.dark .bg-orange-200\/20 {
+.dark .bg-blue-300\/30,
+.dark .bg-blue-200\/20 {
   background-color: hsl(240 10% 3.9%);
 }
 
@@ -217,7 +217,7 @@
 
 .dark .p-3.rounded-lg.border.border-gray-200.bg-white:hover {
   background-color: hsl(240 3.7% 20%);
-  border-color: hsl(25 95% 53%);
+  border-color: hsl(214 95% 53%);
 }
 
 .dark .p-3.rounded-lg.border.border-gray-200.bg-white .text-sm.font-medium {
@@ -229,63 +229,63 @@
 }
 
 /* Dark mode for selected/active design style buttons */
-.dark .p-3.rounded-lg.border.border-orange-200.bg-orange-50\/50 {
-  background-color: hsl(25 95% 53%);
-  border-color: hsl(25 95% 53%);
+.dark .p-3.rounded-lg.border.border-blue-200.bg-blue-50\/50 {
+  background-color: hsl(214 95% 53%);
+  border-color: hsl(214 95% 53%);
   color: hsl(240 10% 3.9%);
 }
 
-.dark .p-3.rounded-lg.border.border-orange-200.bg-orange-50\/50 .text-sm.font-medium {
+.dark .p-3.rounded-lg.border.border-blue-200.bg-blue-50\/50 .text-sm.font-medium {
   color: hsl(240 10% 3.9%);
 }
 
-.dark .p-3.rounded-lg.border.border-orange-200.bg-orange-50\/50 .text-xs.text-gray-500 {
+.dark .p-3.rounded-lg.border.border-blue-200.bg-blue-50\/50 .text-xs.text-gray-500 {
   color: hsl(240 10% 3.9%);
   opacity: 0.8;
 }
 
 /* Dark mode for selected buttons with orange-400 border and orange-50 background */
-.dark .p-3.rounded-lg.border.border-orange-400.bg-orange-50 {
+.dark .p-3.rounded-lg.border.border-blue-400.bg-blue-50 {
   background-color: hsl(240 3.7% 15.9%);
-  border-color: hsl(25 95% 53%);
+  border-color: hsl(214 95% 53%);
   border-width: 2px;
   color: hsl(0 0% 98%);
-  box-shadow: 0 0 0 1px hsl(25 95% 53%), 0 4px 12px -1px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0 0 1px hsl(214 95% 53%), 0 4px 12px -1px rgba(0, 0, 0, 0.15);
 }
 
-.dark .p-3.rounded-lg.border.border-orange-400.bg-orange-50 .text-sm.font-medium {
+.dark .p-3.rounded-lg.border.border-blue-400.bg-blue-50 .text-sm.font-medium {
   color: hsl(0 0% 98%);
   font-weight: 600;
 }
 
-.dark .p-3.rounded-lg.border.border-orange-400.bg-orange-50 .text-xs.text-gray-500 {
+.dark .p-3.rounded-lg.border.border-blue-400.bg-blue-50 .text-xs.text-gray-500 {
   color: hsl(240 5% 64.9%);
   font-weight: 500;
 }
 
 /* Light mode improvements for selected buttons */
-.p-3.rounded-lg.border.border-orange-400.bg-orange-50 {
+.p-3.rounded-lg.border.border-blue-400.bg-blue-50 {
   background-color: hsl(0 0% 98%);
-  border-color: hsl(25 95% 53%);
+  border-color: hsl(214 95% 53%);
   border-width: 2px;
   color: hsl(240 10% 3.9%);
-  box-shadow: 0 0 0 1px hsl(25 95% 53%), 0 4px 12px -1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 1px hsl(214 95% 53%), 0 4px 12px -1px rgba(0, 0, 0, 0.1);
 }
 
-.p-3.rounded-lg.border.border-orange-400.bg-orange-50 .text-sm.font-medium {
+.p-3.rounded-lg.border.border-blue-400.bg-blue-50 .text-sm.font-medium {
   color: hsl(240 10% 3.9%);
   font-weight: 600;
 }
 
-.p-3.rounded-lg.border.border-orange-400.bg-orange-50 .text-xs.text-gray-500 {
+.p-3.rounded-lg.border.border-blue-400.bg-blue-50 .text-xs.text-gray-500 {
   color: hsl(240 5% 40%);
   font-weight: 500;
 }
 
 /* Dark mode for hover states on design style buttons */
 .dark .p-3.rounded-lg.border.border-gray-200.bg-white:hover {
-  background-color: hsl(25 95% 53%);
-  border-color: hsl(25 95% 53%);
+  background-color: hsl(214 95% 53%);
+  border-color: hsl(214 95% 53%);
   color: hsl(240 10% 3.9%);
 }
 
@@ -320,9 +320,9 @@
 }
 
 /* Dark mode for loading spinner and text */
-.dark .w-16.h-16.border-4.border-orange-200.border-t-orange-500.rounded-full.animate-spin.mx-auto {
-  border-color: hsl(25 95% 53%);
-  border-top-color: hsl(25 95% 70%);
+.dark .w-16.h-16.border-4.border-blue-200.border-t-orange-500.rounded-full.animate-spin.mx-auto {
+  border-color: hsl(214 95% 53%);
+  border-top-color: hsl(214 95% 70%);
 }
 
 .dark .text-xl.font-semibold.text-gray-800 {
@@ -356,7 +356,7 @@
 }
 
 .dark .text-xs.flex.items-center.gap-1:hover {
-  color: hsl(25 95% 70%);
+  color: hsl(214 95% 70%);
   background-color: hsl(240 3.7% 15.9%);
   border-radius: 0.375rem;
   padding: 0.25rem 0.5rem;
@@ -379,7 +379,7 @@
 
 .dark .rounded-full.fixed.bottom-4.right-4.z-\[9999\].bg-white.dark\:bg-gray-800.border-gray-300.dark\:border-gray-600.text-gray-700.dark\:text-gray-200.hover\:bg-gray-50.dark\:hover\:bg-gray-700.shadow-lg.transition-all.duration-200.hover\:scale-110:hover {
   background-color: hsl(240 3.7% 15.9%);
-  border-color: hsl(25 95% 53%);
+  border-color: hsl(214 95% 53%);
   transform: scale(1.1);
 }
 
@@ -389,21 +389,21 @@
 }
 
 .rounded-full.fixed.bottom-4.right-4.z-\[9999\].bg-white.dark\:bg-gray-800.border-gray-300.dark\:border-gray-600.text-gray-700.dark\:text-gray-200.hover\:bg-gray-50.dark\:hover\:bg-gray-700.shadow-lg.transition-all.duration-200.hover\:scale-110:hover {
-  border-color: hsl(25 95% 53%);
+  border-color: hsl(214 95% 53%);
   transform: scale(1.1);
 }
 
 .text-xs.flex.items-center.gap-1:hover {
-  color: hsl(25 95% 53%);
-  background-color: hsl(25 95% 95%);
+  color: hsl(214 95% 53%);
+  background-color: hsl(214 95% 95%);
   border-radius: 0.375rem;
   padding: 0.25rem 0.5rem;
 }
 
 /* Light mode improvements for loading elements */
-.w-16.h-16.border-4.border-orange-200.border-t-orange-500.rounded-full.animate-spin.mx-auto {
-  border-color: hsl(25 95% 53%);
-  border-top-color: hsl(25 95% 70%);
+.w-16.h-16.border-4.border-blue-200.border-t-orange-500.rounded-full.animate-spin.mx-auto {
+  border-color: hsl(214 95% 53%);
+  border-top-color: hsl(214 95% 70%);
   box-shadow: 0 0 20px rgba(251, 146, 60, 0.3);
 }
 
@@ -443,7 +443,7 @@
   background-color: hsl(240 3.7% 15.9%);
 }
 
-/* Dark mode for specific Open Lovable elements */
+/* Dark mode for specific Fast Prototype Design elements */
 .dark .bg-card {
   background-color: hsl(240 10% 3.9%);
 }

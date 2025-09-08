@@ -3,6 +3,7 @@ import { createGroq } from '@ai-sdk/groq';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { streamText } from 'ai';
 import type { SandboxState } from '@/types/sandbox';
 import { selectFilesForEdit, getFileContents, formatFilesForAI } from '@/lib/context-selector';
@@ -26,6 +27,10 @@ const googleGenerativeAI = createGoogleGenerativeAI({
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+});
+
+const openrouter = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 // Helper function to analyze user preferences from conversation history
@@ -74,7 +79,7 @@ declare global {
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, model = 'openai/gpt-oss-20b', context, isEdit = false } = await request.json();
+    const { prompt, model = 'moonshotai/kimi-k2-instruct-0905', context, isEdit = false } = await request.json();
     
     console.log('[generate-ai-code-stream] Received request:');
     console.log('[generate-ai-code-stream] - prompt:', prompt);
@@ -552,6 +557,9 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
         
         // Build system prompt with conversation awareness
         const systemPrompt = `You are an expert React developer with perfect memory of the conversation. You maintain context across messages and remember scraped websites, generated components, and applied code. Generate clean, modern React code for Vite applications.
+
+🚨 CRITICAL SYSTEM RULE 🚨
+NEVER use bash commands, shell commands, or ask to see files. All necessary files are provided in the context below. Work ONLY with the provided context and generate code accordingly.
 ${conversationContext}
 
 🚨 CRITICAL RULES - YOUR MOST IMPORTANT INSTRUCTIONS:
@@ -629,6 +637,13 @@ CRITICAL: DO NOT REDESIGN OR REIMAGINE COMPONENTS
 - "delete X" means remove X from where it currently exists
 - Preserve ALL existing functionality and design unless explicitly asked to change it
 
+🚨 ABSOLUTELY FORBIDDEN 🚨
+- NEVER use bash commands like <bash>find</bash>, <bash>ls</bash>, <bash>cat</bash>
+- NEVER ask to "see files" or "check what files exist"
+- NEVER explore the file system - files are provided in context
+- NEVER use any shell commands or system exploration
+- ALWAYS work with the provided file context only
+
 NEVER CREATE NEW FILES WHEN THE USER ASKS TO REMOVE/DELETE SOMETHING
 If the user says "remove X", you must:
 1. Find which existing file contains X
@@ -691,7 +706,7 @@ IMPORTANT: When the user asks for edits or modifications:
 - You have access to the current file contents in the context
 - Make targeted changes to existing files rather than regenerating everything
 - Preserve the existing structure and only modify what's requested
-- If you need to see a specific file that's not in context, mention it
+- Files should be automatically loaded from the existing sandbox context
 
 IMPORTANT: You have access to the full conversation context including:
 - Previously scraped websites and their content
@@ -914,6 +929,14 @@ CRITICAL: When files are provided in the context:
           let backendFiles = global.sandboxState?.fileCache?.files || {};
           let hasBackendFiles = Object.keys(backendFiles).length > 0;
           
+          // Debug file cache state
+          console.log('[generate-ai-code-stream] File cache debug:');
+          console.log('- global.sandboxState exists:', !!global.sandboxState);
+          console.log('- fileCache exists:', !!global.sandboxState?.fileCache);
+          console.log('- files count:', Object.keys(backendFiles).length);
+          console.log('- hasBackendFiles:', hasBackendFiles);
+          console.log('- isEdit:', isEdit);
+          
           console.log('[generate-ai-code-stream] Backend file cache status:');
           console.log('[generate-ai-code-stream] - Has sandboxState:', !!global.sandboxState);
           console.log('[generate-ai-code-stream] - Has fileCache:', !!global.sandboxState?.fileCache);
@@ -1104,7 +1127,7 @@ CRITICAL: When files are provided in the context:
             contextParts.push('❌ NEVER LIST FILE NAMES WITHOUT CONTENT');
             contextParts.push('✅ ALWAYS: One <file> tag per file with COMPLETE content');
             contextParts.push('✅ ALWAYS: Include EVERY file you modified');
-          } else if (!hasBackendFiles) {
+          } else if (!hasBackendFiles && !isEdit) {
             // First generation mode - make it beautiful!
             contextParts.push('\n🎨 FIRST GENERATION MODE - CREATE SOMETHING BEAUTIFUL!');
             contextParts.push('\nThis is the user\'s FIRST experience. Make it impressive:');
@@ -1117,6 +1140,13 @@ CRITICAL: When files are provided in the context:
             contextParts.push('\n⚠️ OUTPUT FORMAT:');
             contextParts.push('Use <file path="...">content</file> tags for EVERY file');
             contextParts.push('NEVER output "Generated Files:" as plain text');
+          } else {
+            // Edge case: isEdit is true but no backend files available
+            console.error('[generate-ai-code-stream] ERROR: Edit mode requested but no files available in cache');
+            contextParts.push('\n⚠️ EDIT MODE ERROR RECOVERY');
+            contextParts.push('The system detected this is an edit request, but no existing files were found.');
+            contextParts.push('This may be a temporary issue. Please proceed with making targeted changes based on the user request.');
+            contextParts.push('If you need to see specific files, try regenerating the full application first.');
           }
           
           // Add conversation context (scraped websites, etc)
@@ -1154,16 +1184,41 @@ CRITICAL: When files are provided in the context:
         const packagesToInstall: string[] = [];
         
         // Determine which provider to use based on model
+        console.log('[generate-ai-code-stream] Model routing debug:');
+        console.log('- Received model:', model);
+        console.log('- OPENROUTER_API_KEY exists:', !!process.env.OPENROUTER_API_KEY);
+        
         const isAnthropic = model.startsWith('anthropic/');
         const isGoogle = model.startsWith('google/');
         const isOpenAI = model.startsWith('openai/gpt-5');
-        const modelProvider = isAnthropic ? anthropic : (isOpenAI ? openai : (isGoogle ? googleGenerativeAI : groq));
+        const isOpenRouter = model.startsWith('openrouter/');
+        
+        console.log('- isAnthropic:', isAnthropic);
+        console.log('- isGoogle:', isGoogle);
+        console.log('- isOpenAI:', isOpenAI);
+        console.log('- isOpenRouter:', isOpenRouter);
+        
+        const modelProvider = isAnthropic ? anthropic : 
+                             (isOpenAI ? openai : 
+                             (isGoogle ? googleGenerativeAI : 
+                             (isOpenRouter ? openrouter : groq)));
+                             
+        const providerName = isAnthropic ? 'anthropic' : 
+                           (isOpenAI ? 'openai' : 
+                           (isGoogle ? 'google' : 
+                           (isOpenRouter ? 'openrouter' : 'groq')));
+                           
+        console.log('- Selected provider:', providerName);
+        
         const actualModel = isAnthropic ? model.replace('anthropic/', '') : 
                            (model === 'openai/gpt-5') ? 'gpt-5' :
-                           (isGoogle ? model.replace('google/', '') : model);
+                           (isGoogle ? model.replace('google/', '') : 
+                           (isOpenRouter ? model.replace('openrouter/', '') : model));
+                           
+        console.log('- Actual model name sent to provider:', actualModel);
 
         // Make streaming API call with appropriate provider
-        const streamOptions: any = {
+        let streamOptions: any = {
           model: modelProvider(actualModel),
           messages: [
             { 

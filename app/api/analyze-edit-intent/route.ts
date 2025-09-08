@@ -3,6 +3,7 @@ import { createGroq } from '@ai-sdk/groq';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import type { FileManifest } from '@/types/file-manifest';
@@ -19,6 +20,10 @@ const anthropic = createAnthropic({
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: process.env.OPENAI_BASE_URL,
+});
+
+const openrouter = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 // Schema for the AI's search plan - not file selection!
@@ -51,7 +56,7 @@ const searchPlanSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, manifest, model = 'openai/gpt-oss-20b' } = await request.json();
+    const { prompt, manifest, model = 'moonshotai/kimi-k2-instruct-0905' } = await request.json();
     
     console.log('[analyze-edit-intent] Request received');
     console.log('[analyze-edit-intent] Prompt:', prompt);
@@ -105,6 +110,8 @@ export async function POST(request: NextRequest) {
       }
     } else if (model.startsWith('google/')) {
       aiModel = createGoogleGenerativeAI(model.replace('google/', ''));
+    } else if (model.startsWith('openrouter/')) {
+      aiModel = openrouter(model.replace('openrouter/', ''));
     } else {
       // Default to groq if model format is unclear
       aiModel = groq(model);

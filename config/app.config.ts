@@ -28,20 +28,28 @@ export const appConfig = {
   // AI Model Configuration
   ai: {
     // Default AI model
-    defaultModel: 'moonshotai/kimi-k2-instruct',
+    defaultModel: 'moonshotai/kimi-k2-instruct-0905',
     
     // Available models
     availableModels: [
+      'moonshotai/kimi-k2-instruct-0905',
+      'openrouter/anthropic/claude-3.5-sonnet',
+      'openrouter/openai/gpt-4o',
+      'openrouter/meta/llama-3.3-70b-instruct',
+      'openrouter/google/gemini-2.5-pro-preview',
       'openai/gpt-5',
-      'moonshotai/kimi-k2-instruct',
       'anthropic/claude-sonnet-4-20250514',
       'google/gemini-2.5-pro'
     ],
     
     // Model display names
     modelDisplayNames: {
+      'moonshotai/kimi-k2-instruct-0905': 'Kimi K2 Instruct 0905',
+      'openrouter/anthropic/claude-3.5-sonnet': 'Claude 3.5 Sonnet (OR)',
+      'openrouter/openai/gpt-4o': 'GPT-4o (OR)',
+      'openrouter/meta/llama-3.3-70b-instruct': 'Llama 3.3 70B (OR)',
+      'openrouter/google/gemini-2.5-pro-preview': 'Gemini 2.5 Pro (OR)',
       'openai/gpt-5': 'GPT-5',
-      'moonshotai/kimi-k2-instruct': 'Kimi K2 Instruct',
       'anthropic/claude-sonnet-4-20250514': 'Sonnet 4',
       'google/gemini-2.5-pro': 'Gemini 2.5 Pro'
     },
