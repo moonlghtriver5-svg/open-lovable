@@ -2386,8 +2386,8 @@ Focus on the key sections and content, making it clean and modern while preservi
         setHomeScreenFading(false);
         setLoadingStage(null);
         
-        // Switch to chat tab and send description as message
-        setActiveTab('chat');
+        // Switch to generation tab and send description as message
+        setActiveTab('generation');
         setAiChatInput(description);
         
         // Send the description to generate the app
@@ -2396,7 +2396,7 @@ Focus on the key sections and content, making it clean and modern while preservi
         }, 500);
       } catch (error) {
         console.error('Error starting app generation:', error);
-        setHomeScreenVisible(true);
+        setShowHomeScreen(true);
         setHomeScreenFading(false);
         setLoadingStage(null);
         addChatMessage('Failed to start app generation', 'error');
