@@ -1605,7 +1605,7 @@ Provide the complete file content without any truncation. Include all necessary 
                     },
                     { role: 'user', content: completionPrompt }
                   ],
-                  temperature: isGPT5 ? undefined : appConfig.ai.defaultTemperature,
+                  temperature: model.startsWith('openai/gpt-5') ? undefined : appConfig.ai.defaultTemperature,
                   maxTokens: appConfig.ai.truncationRecoveryMaxTokens
                 });
                 
