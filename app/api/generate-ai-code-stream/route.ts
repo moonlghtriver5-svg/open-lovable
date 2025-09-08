@@ -955,10 +955,12 @@ CRITICAL: When files are provided in the context:
                   // Store files in cache
                   for (const [path, content] of Object.entries(filesData.files)) {
                     const normalizedPath = path.replace('/home/user/app/', '');
-                    global.sandboxState.fileCache.files[normalizedPath] = {
-                      content: content as string,
-                      lastModified: Date.now()
-                    };
+                    if (global.sandboxState.fileCache) {
+                      global.sandboxState.fileCache.files[normalizedPath] = {
+                        content: content as string,
+                        lastModified: Date.now()
+                      };
+                    }
                   }
                   
                   if (filesData.manifest) {
