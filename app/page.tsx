@@ -1663,8 +1663,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                             path: filePath,
                             content: fileContent.trim(),
                             type: fileType,
-                            completed: true,
-                            edited: false
+                            completed: true
                           }];
                         }
                         
@@ -2372,8 +2371,8 @@ Focus on the key sections and content, making it clean and modern while preservi
     
     // Set loading stage for app building
     setLoadingStage('planning');
-    // Switch to chat tab to show the conversation
-    setActiveTab('chat');
+    // Switch to generation tab to show the conversation
+    setActiveTab('generation');
     
     setTimeout(async () => {
       try {
