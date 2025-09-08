@@ -1653,8 +1653,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                               ...updatedState.files[existingFileIndex],
                               content: fileContent.trim(),
                               type: fileType,
-                              completed: true,
-                              edited: true
+                              completed: true
                             },
                             ...updatedState.files.slice(existingFileIndex + 1)
                           ];
