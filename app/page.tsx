@@ -339,6 +339,8 @@ export default function AISandboxPage() {
               }
             } catch (e) {
               console.error('Failed to parse SSE data:', e);
+              console.error('Problematic line was:', line);
+              // Continue processing other lines even if one fails
             }
           }
         }
@@ -614,7 +616,9 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                   break;
               }
             } catch (e) {
-              // Ignore parse errors
+              console.error('Parse error in streaming response:', e);
+              console.error('Problematic line was:', line);
+              // Continue processing other lines even if one fails
             }
           }
         }
@@ -2217,6 +2221,8 @@ Focus on the key sections and content, making it clean and modern while preservi
                 }
               } catch (e) {
                 console.error('Error parsing streaming data:', e);
+                console.error('Problematic line was:', line);
+                // Continue processing other lines even if one fails
               }
             }
           }
@@ -2356,389 +2362,50 @@ Focus on the key sections and content, making it clean and modern while preservi
     
     setHomeScreenFading(true);
     
-    // Clear messages and immediately show the cloning message
+    // Clear messages and immediately show the building message
     setChatMessages([]);
-    let displayUrl = homeUrlInput.trim();
-    if (!displayUrl.match(/^https?:\/\//i)) {
-      displayUrl = 'https://' + displayUrl;
-    }
-    // Remove protocol for cleaner display
-    const cleanUrl = displayUrl.replace(/^https?:\/\//i, '');
-    addChatMessage(`Starting to clone ${cleanUrl}...`, 'system');
+    const description = homeUrlInput.trim();
+    addChatMessage(`Starting to build: ${description}`, 'system');
     
     // Start creating sandbox and capturing screenshot immediately in parallel
     const sandboxPromise = !sandboxData ? createSandbox(true) : Promise.resolve();
     
-    // Only capture screenshot if we don't already have a sandbox (first generation)
-    // After sandbox is set up, skip the screenshot phase for faster generation
-    if (!sandboxData) {
-      captureUrlScreenshot(displayUrl);
-    }
+    // Skip screenshot capture since we're building from description, not URL
     
-    // Set loading stage immediately before hiding home screen
-    setLoadingStage('gathering');
-    // Also ensure we're on preview tab to show the loading overlay
-    setActiveTab('preview');
+    // Set loading stage for app building
+    setLoadingStage('planning');
+    // Switch to chat tab to show the conversation
+    setActiveTab('chat');
     
     setTimeout(async () => {
-      setShowHomeScreen(false);
-      setHomeScreenFading(false);
-      
-      // Wait for sandbox to be ready (if it's still creating)
-      await sandboxPromise;
-      
-      // Now start the clone process which will stream the generation
-      setUrlInput(homeUrlInput);
-      setUrlOverlayVisible(false); // Make sure overlay is closed
-      setUrlStatus(['Scraping website content...']);
-      
       try {
-        // Scrape the website
-        let url = homeUrlInput.trim();
-        if (!url.match(/^https?:\/\//i)) {
-          url = 'https://' + url;
-        }
+        // Wait for sandbox to be ready before proceeding
+        addChatMessage('Creating sandbox environment...', 'system');
+        await sandboxPromise;
+        addChatMessage('Sandbox ready! Starting to build your app...', 'system');
         
-        // Screenshot is already being captured in parallel above
+        // Now hide home screen and switch to chat
+        setShowHomeScreen(false);
+        setHomeScreenFading(false);
+        setLoadingStage(null);
         
-        const scrapeResponse = await fetch('/api/scrape-url-enhanced', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
-        });
+        // Switch to chat tab and send description as message
+        setActiveTab('chat');
+        setAiChatInput(description);
         
-        if (!scrapeResponse.ok) {
-          throw new Error('Failed to scrape website');
-        }
-        
-        const scrapeData = await scrapeResponse.json();
-        
-        if (!scrapeData.success) {
-          throw new Error(scrapeData.error || 'Failed to scrape website');
-        }
-        
-        setUrlStatus(['Website scraped successfully!', 'Generating React app...']);
-        
-        // Clear preparing design state and switch to generation tab
-        setIsPreparingDesign(false);
-        setUrlScreenshot(null); // Clear screenshot when starting generation
-        setTargetUrl(''); // Clear target URL
-        
-        // Update loading stage to planning
-        setLoadingStage('planning');
-        
-        // Brief pause before switching to generation tab
+        // Send the description to generate the app
         setTimeout(() => {
-          setLoadingStage('generating');
-          setActiveTab('generation');
-        }, 1500);
-        
-        // Store scraped data in conversation context
-        setConversationContext(prev => ({
-          ...prev,
-          scrapedWebsites: [...prev.scrapedWebsites, {
-            url: url,
-            content: scrapeData,
-            timestamp: new Date()
-          }],
-          currentProject: `${url} Clone`
-        }));
-        
-        const prompt = `I want to recreate the ${url} website as a complete React application based on the scraped content below.
-
-${JSON.stringify(scrapeData, null, 2)}
-
-${homeContextInput ? `ADDITIONAL CONTEXT/REQUIREMENTS FROM USER:
-${homeContextInput}
-
-Please incorporate these requirements into the design and implementation.` : ''}
-
-IMPORTANT INSTRUCTIONS:
-- Create a COMPLETE, working React application
-- Implement ALL sections and features from the original site
-- Use Tailwind CSS for all styling (no custom CSS files)
-- Make it responsive and modern
-- Ensure all text content matches the original
-- Create proper component structure
-- Make sure the app actually renders visible content
-- Create ALL components that you reference in imports
-${homeContextInput ? '- Apply the user\'s context/theme requirements throughout the application' : ''}
-
-Focus on the key sections and content, making it clean and modern.`;
-        
-        setGenerationProgress(prev => ({
-          isGenerating: true,
-          status: 'Initializing AI...',
-          components: [],
-          currentComponent: 0,
-          streamedCode: '',
-          isStreaming: true,
-          isThinking: false,
-          thinkingText: undefined,
-          thinkingDuration: undefined,
-          // Keep previous files until new ones are generated
-          files: prev.files || [],
-          currentFile: undefined,
-          lastProcessedPosition: 0
-        }));
-        
-        const aiResponse = await fetch('/api/generate-ai-code-stream', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            prompt,
-            model: aiModel,
-            context: {
-              sandboxId: sandboxData?.sandboxId,
-              structure: structureContent,
-              conversationContext: conversationContext
-            }
-          })
-        });
-        
-        if (!aiResponse.ok || !aiResponse.body) {
-          throw new Error('Failed to generate code');
-        }
-        
-        const reader = aiResponse.body.getReader();
-        const decoder = new TextDecoder();
-        let generatedCode = '';
-        let explanation = '';
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                
-                if (data.type === 'status') {
-                  setGenerationProgress(prev => ({ ...prev, status: data.message }));
-                } else if (data.type === 'thinking') {
-                  setGenerationProgress(prev => ({ 
-                    ...prev, 
-                    isThinking: true,
-                    thinkingText: (prev.thinkingText || '') + data.text
-                  }));
-                } else if (data.type === 'thinking_complete') {
-                  setGenerationProgress(prev => ({ 
-                    ...prev, 
-                    isThinking: false,
-                    thinkingDuration: data.duration
-                  }));
-                } else if (data.type === 'conversation') {
-                  // Add conversational text to chat only if it's not code
-                  let text = data.text || '';
-                  
-                  // Remove package tags from the text
-                  text = text.replace(/<package>[^<]*<\/package>/g, '');
-                  text = text.replace(/<packages>[^<]*<\/packages>/g, '');
-                  
-                  // Filter out any XML tags and file content that slipped through
-                  if (!text.includes('<file') && !text.includes('import React') && 
-                      !text.includes('export default') && !text.includes('className=') &&
-                      text.trim().length > 0) {
-                    addChatMessage(text.trim(), 'ai');
-                  }
-                } else if (data.type === 'stream' && data.raw) {
-                  setGenerationProgress(prev => {
-                    const newStreamedCode = prev.streamedCode + data.text;
-                    
-                    // Tab is already switched after scraping
-                    
-                    const updatedState = { 
-                      ...prev, 
-                      streamedCode: newStreamedCode,
-                      isStreaming: true,
-                      isThinking: false,
-                      status: 'Generating code...'
-                    };
-                    
-                    // Process complete files from the accumulated stream
-                    const fileRegex = /<file path="([^"]+)">([^]*?)<\/file>/g;
-                    let match;
-                    const processedFiles = new Set(prev.files.map(f => f.path));
-                    
-                    while ((match = fileRegex.exec(newStreamedCode)) !== null) {
-                      const filePath = match[1];
-                      const fileContent = match[2];
-                      
-                      // Only add if we haven't processed this file yet
-                      if (!processedFiles.has(filePath)) {
-                        const fileExt = filePath.split('.').pop() || '';
-                        const fileType = fileExt === 'jsx' || fileExt === 'js' ? 'javascript' :
-                                        fileExt === 'css' ? 'css' :
-                                        fileExt === 'json' ? 'json' :
-                                        fileExt === 'html' ? 'html' : 'text';
-                        
-                        // Check if file already exists
-                        const existingFileIndex = updatedState.files.findIndex(f => f.path === filePath);
-                        
-                        if (existingFileIndex >= 0) {
-                          // Update existing file and mark as edited
-                          updatedState.files = [
-                            ...updatedState.files.slice(0, existingFileIndex),
-                            {
-                              ...updatedState.files[existingFileIndex],
-                              content: fileContent.trim(),
-                              type: fileType,
-                              completed: true,
-                              edited: true
-                            },
-                            ...updatedState.files.slice(existingFileIndex + 1)
-                          ];
-                        } else {
-                          // Add new file
-                          updatedState.files = [...updatedState.files, {
-                            path: filePath,
-                            content: fileContent.trim(),
-                            type: fileType,
-                            completed: true,
-                            edited: false
-                          }];
-                        }
-                        
-                        // Only show file status if not in edit mode
-                        if (!prev.isEdit) {
-                          updatedState.status = `Completed ${filePath}`;
-                        }
-                        processedFiles.add(filePath);
-                      }
-                    }
-                    
-                    // Check for current file being generated (incomplete file at the end)
-                    const lastFileMatch = newStreamedCode.match(/<file path="([^"]+)">([^]*?)$/);
-                    if (lastFileMatch && !lastFileMatch[0].includes('</file>')) {
-                      const filePath = lastFileMatch[1];
-                      const partialContent = lastFileMatch[2];
-                      
-                      if (!processedFiles.has(filePath)) {
-                        const fileExt = filePath.split('.').pop() || '';
-                        const fileType = fileExt === 'jsx' || fileExt === 'js' ? 'javascript' :
-                                        fileExt === 'css' ? 'css' :
-                                        fileExt === 'json' ? 'json' :
-                                        fileExt === 'html' ? 'html' : 'text';
-                        
-                        updatedState.currentFile = { 
-                          path: filePath, 
-                          content: partialContent, 
-                          type: fileType 
-                        };
-                        // Only show file status if not in edit mode
-                        if (!prev.isEdit) {
-                          updatedState.status = `Generating ${filePath}`;
-                        }
-                      }
-                    } else {
-                      updatedState.currentFile = undefined;
-                    }
-                    
-                    return updatedState;
-                  });
-                } else if (data.type === 'complete') {
-                  generatedCode = data.generatedCode;
-                  explanation = data.explanation;
-                  
-                  // Save the last generated code
-                  setConversationContext(prev => ({
-                    ...prev,
-                    lastGeneratedCode: generatedCode
-                  }));
-                }
-              } catch (e) {
-                console.error('Failed to parse SSE data:', e);
-              }
-            }
-          }
-        }
-        
-        setGenerationProgress(prev => ({
-          ...prev,
-          isGenerating: false,
-          isStreaming: false,
-          status: 'Generation complete!'
-        }));
-        
-        if (generatedCode) {
-          addChatMessage('AI recreation generated!', 'system');
-          
-          // Add the explanation to chat if available
-          if (explanation && explanation.trim()) {
-            addChatMessage(explanation, 'ai');
-          }
-          
-          setPromptInput(generatedCode);
-          
-          // First application for cloned site should not be in edit mode
-          await applyGeneratedCode(generatedCode, false);
-          
-          addChatMessage(
-            `Successfully recreated ${url} as a modern React app${homeContextInput ? ` with your requested context: "${homeContextInput}"` : ''}! The scraped content is now in my context, so you can ask me to modify specific sections or add features based on the original site.`, 
-            'ai',
-            {
-              scrapedUrl: url,
-              scrapedContent: scrapeData,
-              generatedCode: generatedCode
-            }
-          );
-          
-          setConversationContext(prev => ({
-            ...prev,
-            generatedComponents: [],
-            appliedCode: [...prev.appliedCode, {
-              files: [],
-              timestamp: new Date()
-            }]
-          }));
-        } else {
-          throw new Error('Failed to generate recreation');
-        }
-        
-        setUrlInput('');
-        setUrlStatus([]);
-        setHomeContextInput('');
-        
-        // Clear generation progress and all screenshot/design states
-        setGenerationProgress(prev => ({
-          ...prev,
-          isGenerating: false,
-          isStreaming: false,
-          status: 'Generation complete!'
-        }));
-        
-        // Clear screenshot and preparing design states to prevent them from showing on next run
-        setUrlScreenshot(null);
-        setIsPreparingDesign(false);
-        setTargetUrl('');
-        setScreenshotError(null);
-        setLoadingStage(null); // Clear loading stage
-        
-        setTimeout(() => {
-          // Switch back to preview tab but keep files
-          setActiveTab('preview');
-        }, 1000); // Show completion briefly then switch
-      } catch (error: any) {
-        addChatMessage(`Failed to clone website: ${error.message}`, 'system');
-        setUrlStatus([]);
-        setIsPreparingDesign(false);
-        // Also clear generation progress on error
-        setGenerationProgress(prev => ({
-          ...prev,
-          isGenerating: false,
-          isStreaming: false,
-          status: '',
-          // Keep files to display in sidebar
-          files: prev.files
-        }));
+          sendChatMessage();
+        }, 500);
+      } catch (error) {
+        console.error('Error starting app generation:', error);
+        setHomeScreenVisible(true);
+        setHomeScreenFading(false);
+        setLoadingStage(null);
+        addChatMessage('Failed to start app generation', 'error');
       }
     }, 500);
   };
-
   return (
     <div className="font-sans bg-background text-foreground h-screen flex flex-col">
       {/* Theme Toggle */}
@@ -2819,7 +2486,7 @@ Focus on the key sections and content, making it clean and modern.`;
                   }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                 >
-                  Re-imagine any website, in seconds.
+                  Build any web app from your ideas, in seconds.
                 </motion.p>
               </div>
               
@@ -2832,9 +2499,8 @@ Focus on the key sections and content, making it clean and modern.`;
                       const value = e.target.value;
                       setHomeUrlInput(value);
                       
-                      // Check if it's a valid domain
-                      const domainRegex = /^(https?:\/\/)?(([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(\/?.*)?$/;
-                      if (domainRegex.test(value) && value.length > 5) {
+                      // Show style selector if user has typed something meaningful
+                      if (value.trim().length > 10) {
                         // Small delay to make the animation feel smoother
                         setTimeout(() => setShowStyleSelector(true), 100);
                       } else {
@@ -2842,8 +2508,8 @@ Focus on the key sections and content, making it clean and modern.`;
                         setSelectedStyle(null);
                       }
                     }}
-                    placeholder=" "
-                    aria-placeholder="https://firecrawl.dev"
+                    placeholder="Describe what you want to build (e.g., 'A todo app with dark mode' or 'A landing page for a coffee shop')"
+                    aria-placeholder="Describe what you want to build"
                     className="h-[3.25rem] w-full resize-none focus-visible:outline-none focus-visible:ring-orange-500 focus-visible:ring-2 rounded-[18px] text-sm text-[#36322F] px-4 pr-12 border-[.75px] border-border bg-white"
                     style={{
                       boxShadow: '0 0 0 1px #e3e1de66, 0 1px 2px #5f4a2e14, 0 4px 6px #5f4a2e0a, 0 40px 40px -24px #684b2514',
