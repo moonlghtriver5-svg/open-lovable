@@ -721,7 +721,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
         
         log('Code applied successfully!');
         console.log('[applyGeneratedCode] Response data:', data);
-        console.log('[applyGeneratedCode] Debug info:', data.debug);
+        console.log('[applyGeneratedCode] Debug info:', results.debug);
         console.log('[applyGeneratedCode] Current sandboxData:', sandboxData);
         console.log('[applyGeneratedCode] Current iframe element:', iframeRef.current);
         console.log('[applyGeneratedCode] Current iframe src:', iframeRef.current?.src);
