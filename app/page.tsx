@@ -1016,7 +1016,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                       // Create a map of edited files
                       const editedFiles = new Set(
                         generationProgress.files
-                          .filter(f => f.edited)
+                          .filter(f => f.completed)
                           .map(f => f.path)
                       );
                       
