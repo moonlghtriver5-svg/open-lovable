@@ -180,15 +180,55 @@ async function handlePlanningMode(request: NextRequest, prompt: string, context:
           throw new Error('Build failed');
         }
         
-        // Stream the build output
+        // Stream the build output and capture generated files
+        let generatedFiles = {};
         const buildReader = buildResponse.body?.getReader();
         if (buildReader) {
           while (true) {
             const { done, value } = await buildReader.read();
             if (done) break;
             
+            // Parse the stream to extract file information
+            const chunk = new TextDecoder().decode(value);
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  // Capture file generation events
+                  if (data.type === 'component' || data.type === 'file') {
+                    // Store the generated file info for future planning
+                    if (data.path && data.content) {
+                      generatedFiles[data.path] = data.content;
+                    }
+                  }
+                } catch (e) {
+                  // Ignore parse errors
+                }
+              }
+            }
+            
             controller.enqueue(value);
           }
+        }
+        
+        // Store generated files in global conversation state for next planning request
+        if (Object.keys(generatedFiles).length > 0) {
+          console.log('[handlePlanningMode] Storing', Object.keys(generatedFiles).length, 'generated files for future planning');
+          
+          if (!global.conversationState) {
+            global.conversationState = { context: { currentFiles: {}, messages: [] } };
+          }
+          if (!global.conversationState.context) {
+            global.conversationState.context = { currentFiles: {}, messages: [] };
+          }
+          if (!global.conversationState.context.currentFiles) {
+            global.conversationState.context.currentFiles = {};
+          }
+          
+          // Update current files with generated code
+          Object.assign(global.conversationState.context.currentFiles, generatedFiles);
         }
         
         controller.close();

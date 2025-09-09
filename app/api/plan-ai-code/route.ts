@@ -29,10 +29,13 @@ export async function POST(request: NextRequest) {
     // Build context for planning
     let planningContext = '';
     
+    // Get current files from context or global conversation state
+    const currentFiles = context?.currentFiles || global.conversationState?.context?.currentFiles || {};
+    
     // Include existing app context if available
-    if (context?.currentFiles && Object.keys(context.currentFiles).length > 0) {
+    if (Object.keys(currentFiles).length > 0) {
       planningContext += '\n\nEXISTING APPLICATION CONTEXT:\n';
-      const fileEntries = Object.entries(context.currentFiles);
+      const fileEntries = Object.entries(currentFiles);
       
       // Show file structure
       planningContext += 'Current files:\n';
@@ -68,7 +71,16 @@ export async function POST(request: NextRequest) {
     
     const planningPrompt = `You are a concise software architect. Create a BRIEF, actionable implementation plan.
 
-📋 PLAN FORMAT (Keep each section SHORT):
+${Object.keys(currentFiles).length > 0 ? `
+🔍 CONTEXT AWARENESS:
+You have been provided with the existing application code. ANALYZE it carefully:
+- Understand the current component structure, styling, and functionality
+- Identify existing patterns, colors, libraries, and architecture
+- Make your plan SPECIFIC to this existing codebase
+- Reference actual component names, file paths, and existing patterns
+- Don't suggest generic solutions - tailor to what already exists
+
+` : ''}📋 PLAN FORMAT (Keep each section SHORT):
 
 ## 🎯 Goal
 - 1-2 sentence summary of what to build
