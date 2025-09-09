@@ -217,18 +217,18 @@ async function handlePlanningMode(request: NextRequest, prompt: string, context:
         if (Object.keys(generatedFiles).length > 0) {
           console.log('[handlePlanningMode] Storing', Object.keys(generatedFiles).length, 'generated files for future planning');
           
-          if (!global.conversationState) {
+          if (!(global as any).conversationState) {
             (global as any).conversationState = { context: { currentFiles: {}, messages: [] } };
           }
-          if (!global.conversationState.context) {
-            (global.conversationState as any).context = { currentFiles: {}, messages: [] };
+          if (!(global as any).conversationState.context) {
+            (global as any).conversationState.context = { currentFiles: {}, messages: [] };
           }
-          if (!global.conversationState.context.currentFiles) {
-            (global.conversationState.context as any).currentFiles = {};
+          if (!(global as any).conversationState.context.currentFiles) {
+            (global as any).conversationState.context.currentFiles = {};
           }
           
           // Update current files with generated code
-          Object.assign(global.conversationState.context.currentFiles, generatedFiles);
+          Object.assign((global as any).conversationState.context.currentFiles, generatedFiles);
         }
         
         controller.close();
