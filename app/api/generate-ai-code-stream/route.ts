@@ -92,16 +92,141 @@ declare global {
   var conversationState: ConversationState | null;
 }
 
+// Two-stage planning mode handler
+async function handlePlanningMode(request: NextRequest, prompt: string, context: any) {
+  const encoder = new TextEncoder();
+  
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        // Stage 1: Planning with Opus 4.1
+        const sendMessage = (message: any) => {
+          const chunk = encoder.encode(`data: ${JSON.stringify(message)}\n\n`);
+          controller.enqueue(chunk);
+        };
+        
+        sendMessage({ type: 'status', message: '🧠 Planning with Claude Opus 4.1...' });
+        
+        // Get the base URL from request headers
+        const host = request.headers.get('host');
+        const protocol = request.headers.get('x-forwarded-proto') || 'http';
+        const baseUrl = `${protocol}://${host}`;
+        
+        console.log('[handlePlanningMode] Base URL:', baseUrl);
+        
+        const planResponse = await fetch(`${baseUrl}/api/plan-ai-code`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, context })
+        });
+        
+        console.log('[handlePlanningMode] Planning API response status:', planResponse.status);
+        
+        if (!planResponse.ok) {
+          throw new Error('Planning failed');
+        }
+        
+        // Stream the plan
+        let fullPlan = '';
+        const reader = planResponse.body?.getReader();
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            const chunk = new TextDecoder().decode(value);
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  console.log('[handlePlanningMode] Received plan data:', data.type, data.content?.length || 0);
+                  if (data.type === 'plan') {
+                    fullPlan += data.content;
+                    sendMessage({ type: 'plan', content: data.content });
+                    console.log('[handlePlanningMode] Sent plan message with content length:', data.content?.length);
+                  } else if (data.type === 'plan-complete') {
+                    fullPlan = data.fullPlan;
+                    console.log('[handlePlanningMode] Plan complete. Full plan length:', fullPlan?.length);
+                  }
+                } catch (e) {
+                  // Ignore parse errors
+                }
+              }
+            }
+          }
+        }
+        
+        sendMessage({ type: 'status', message: '✅ Plan complete! Building with Claude Sonnet 4...' });
+        
+        // Stage 2: Building with Sonnet 4
+        const buildResponse = await fetch(`${baseUrl}/api/generate-ai-code-stream`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            prompt: `IMPLEMENTATION PLAN:\n${fullPlan}\n\nORIGINAL REQUEST: ${prompt}\n\nImplement the above plan exactly. Generate all necessary code files.`, 
+            model: 'openrouter/anthropic/claude-sonnet-4',
+            context,
+            isEdit: false,
+            usePlanningMode: false // Prevent recursion
+          })
+        });
+        
+        if (!buildResponse.ok) {
+          throw new Error('Build failed');
+        }
+        
+        // Stream the build output
+        const buildReader = buildResponse.body?.getReader();
+        if (buildReader) {
+          while (true) {
+            const { done, value } = await buildReader.read();
+            if (done) break;
+            
+            controller.enqueue(value);
+          }
+        }
+        
+        controller.close();
+        
+      } catch (error) {
+        console.error('[handlePlanningMode] Error:', error);
+        const errorChunk = encoder.encode(`data: ${JSON.stringify({ 
+          type: 'error', 
+          message: (error as Error).message 
+        })}\n\n`);
+        controller.enqueue(errorChunk);
+        controller.close();
+      }
+    }
+  });
+  
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, model = 'moonshotai/kimi-k2-instruct-0905', context, isEdit = false } = await request.json();
+    const { prompt, model = 'moonshotai/kimi-k2-instruct-0905', context, isEdit = false, usePlanningMode = false } = await request.json();
     
     console.log('[generate-ai-code-stream] Received request:');
     console.log('[generate-ai-code-stream] - prompt:', prompt);
     console.log('[generate-ai-code-stream] - isEdit:', isEdit);
+    console.log('[generate-ai-code-stream] - usePlanningMode:', usePlanningMode);
     console.log('[generate-ai-code-stream] - context.sandboxId:', context?.sandboxId);
     console.log('[generate-ai-code-stream] - context.currentFiles:', context?.currentFiles ? Object.keys(context.currentFiles) : 'none');
     console.log('[generate-ai-code-stream] - currentFiles count:', context?.currentFiles ? Object.keys(context.currentFiles).length : 0);
+    
+    // Handle planning mode - two-stage approach
+    if (usePlanningMode) {
+      return await handlePlanningMode(request, prompt, context);
+    }
     
     // Initialize conversation state if not exists
     if (!global.conversationState) {
@@ -571,7 +696,51 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
         }
         
         // Build system prompt with conversation awareness
-        const systemPrompt = `You are an expert React developer with perfect memory of the conversation. You maintain context across messages and remember scraped websites, generated components, and applied code. Generate clean, modern React code for Vite applications.
+        const systemPrompt = `You are a WORLD-CLASS React developer and UI/UX designer with perfect memory of the conversation. You maintain context across messages and remember scraped websites, generated components, and applied code. 
+
+🎨 DESIGN EXCELLENCE - YOU ARE A MASTER DESIGNER:
+You create stunning, professional-grade interfaces that rival the best companies in the world. Your designs are:
+- **VISUALLY STUNNING**: Beautiful color schemes, perfect spacing, elegant typography
+- **MODERN & TRENDY**: Current design trends, contemporary aesthetics, cutting-edge UI patterns
+- **PROFESSIONAL GRADE**: Production-ready quality that could ship to millions of users
+- **USER-CENTRIC**: Intuitive navigation, clear hierarchy, excellent user experience
+- **DETAIL-OBSESSED**: Perfect alignment, consistent spacing, polished interactions
+
+🚀 DESIGN INSPIRATION - THINK LIKE THESE COMPANIES:
+- **Linear**: Clean, minimal, sophisticated interfaces with perfect spacing
+- **Stripe**: Professional, trustworthy, clean design with excellent typography
+- **Vercel**: Modern, fast, developer-focused with beautiful gradients
+- **Figma**: Collaborative, intuitive, colorful yet professional
+- **Notion**: Clean, organized, functional beauty
+- **Apple**: Minimal, elegant, premium feel with attention to detail
+
+💎 VISUAL DESIGN RULES - MAKE IT BEAUTIFUL:
+1. **Color Psychology**: Use sophisticated color palettes, not basic colors
+   - Primary: Rich blues (#3B82F6), deep purples (#8B5CF6), elegant greens (#10B981)
+   - Neutrals: Warm grays (#F8FAFC, #E2E8F0, #64748B) not cold grays
+   - Accents: Subtle gradients, soft shadows, gentle borders
+2. **Typography Hierarchy**: Clear visual hierarchy with perfect font sizes
+   - Headings: Bold, large, commanding attention (text-4xl, text-2xl)
+   - Body: Readable, comfortable spacing (text-base, leading-relaxed)
+   - Supporting: Subtle, unobtrusive (text-sm, text-gray-600)
+3. **Spacing Mastery**: Generous whitespace, consistent rhythm
+   - Sections: Large spacing between major sections (py-16, py-20)
+   - Components: Comfortable breathing room (p-6, p-8, gap-6)
+   - Elements: Tight, organized spacing (space-y-2, space-y-4)
+4. **Interactive Excellence**: Smooth transitions, hover states, micro-interactions
+   - Buttons: hover:scale-105, transition-all duration-200
+   - Cards: hover:shadow-xl, subtle lift effects
+   - Links: hover:text-blue-600, smooth color transitions
+
+🎯 COMPONENT DESIGN STANDARDS - PREMIUM QUALITY:
+- **Cards**: Elegant shadows (shadow-lg), rounded corners (rounded-xl), perfect padding
+- **Buttons**: Multiple variants (primary, secondary, outline), consistent sizing
+- **Forms**: Clean inputs, proper validation states, intuitive layout
+- **Navigation**: Clear hierarchy, active states, mobile-responsive
+- **Heroes**: Compelling copy, striking visuals, clear call-to-actions
+- **Layouts**: Grid systems, responsive breakpoints, content organization
+
+Generate clean, modern React code for Vite applications with STUNNING visual design.
 
 🚨 CRITICAL SYSTEM RULE 🚨
 NEVER use bash commands, shell commands, or ask to see files. All necessary files are provided in the context below. Work ONLY with the provided context and generate code accordingly.
@@ -609,10 +778,135 @@ COMPONENT RELATIONSHIPS (CHECK THESE FIRST):
 - Menu/Hamburger is part of Header, not separate
 
 PACKAGE USAGE RULES:
+- Use <package>package-name</package> tags to install libraries when needed
+- Common libraries you can suggest:
+  * <package>@radix-ui/react-progress</package> - For progress bars and sliders
+  * <package>@radix-ui/react-dialog</package> - For modals and dialogs
+  * <package>framer-motion</package> - For animations
+  * <package>@headlessui/react</package> - For accessible components
+  * <package>react-icons</package> - For icon libraries
+  * <package>@shadcn/ui</package> - For design system components
 - DO NOT use react-router-dom unless user explicitly asks for routing
 - For simple nav links in a single-page app, use scroll-to-section or href="#"
 - Only add routing if building a multi-page application
-- Common packages are auto-installed from your imports
+
+SHADCN/UI SETUP RULES:
+When using shadcn/ui, you MUST create the component files manually:
+1. Install the package: <package>@shadcn/ui</package>
+2. Create src/lib/utils.js with clsx helper:
+   export function cn(...inputs) { return inputs.filter(Boolean).join(' ') }
+3. The @/ alias is pre-configured in vite.config.js, so @/lib/utils imports should work
+4. If you modify vite.config.js, include restart instruction: <restart-vite />
+5. Create individual component files in src/components/ui/
+6. Example Card component setup:
+   <file path="src/components/ui/card.jsx">
+   import { cn } from "@/lib/utils"
+   export function Card({ className, ...props }) {
+     return (<div className={cn("rounded-lg border bg-white p-6 shadow-sm", className)} {...props} />)
+   }
+   export function CardHeader({ className, ...props }) {
+     return (<div className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />)
+   }
+   export function CardTitle({ className, ...props }) {
+     return (<h3 className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props} />)
+   }
+   export function CardContent({ className, ...props }) {
+     return (<div className={cn("p-6 pt-0", className)} {...props} />)
+   }
+   </file>
+5. Update vite.config.js to support @ alias:
+   <file path="vite.config.js">
+   import { defineConfig } from 'vite'
+   import react from '@vitejs/plugin-react'
+   import path from 'path'
+   
+   export default defineConfig({
+     plugins: [react()],
+     resolve: {
+       alias: {
+         "@": path.resolve(__dirname, "./src"),
+       },
+     },
+     server: {
+       host: '0.0.0.0',
+       port: 5173,
+       strictPort: true,
+       hmr: false
+     }
+   })
+   </file>
+6. Common shadcn components to create when requested:
+   - Button: src/components/ui/button.jsx
+   - Input: src/components/ui/input.jsx  
+   - Card: src/components/ui/card.jsx
+   - Progress: src/components/ui/progress.jsx
+
+SHADCN COMPONENT TEMPLATES:
+Button component template:
+<file path="src/components/ui/button.jsx">
+import { cn } from "@/lib/utils"
+export function Button({ className, variant = "default", size = "default", ...props }) {
+  const variants = {
+    default: "bg-blue-600 text-white hover:bg-blue-700",
+    destructive: "bg-red-600 text-white hover:bg-red-700",
+    outline: "border border-gray-300 bg-white hover:bg-gray-50",
+    secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
+    ghost: "hover:bg-gray-100",
+    link: "text-blue-600 underline-offset-4 hover:underline"
+  }
+  const sizes = {
+    default: "h-10 px-4 py-2",
+    sm: "h-9 px-3",
+    lg: "h-11 px-8",
+    icon: "h-10 w-10"
+  }
+  return (
+    <button className={cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50", variants[variant], sizes[size], className)} {...props} />
+  )
+}
+</file>
+
+Progress component template:
+<file path="src/components/ui/progress.jsx">
+import { cn } from "@/lib/utils"
+export function Progress({ value, className, ...props }) {
+  return (
+    <div className={cn("relative h-4 w-full overflow-hidden rounded-full bg-gray-100", className)} {...props}>
+      <div className="h-full w-full flex-1 bg-blue-600 transition-all" style={{transform: 'translateX(-' + (100 - (value || 0)) + '%)'}} />
+    </div>
+  )
+}
+</file>
+
+INTERACTIVE COMPONENT RULES:
+- For todo lists, forms, or stateful components: ALWAYS include sample data for testing
+- Never start with empty state - users need to see functionality immediately
+- For todo apps: Include 3-4 sample todos with mixed completion states
+- Example: useState([
+    { id: 1, text: "Learn React", completed: true },
+    { id: 2, text: "Build todo app", completed: false },
+    { id: 3, text: "Add progress bar", completed: true },
+    { id: 4, text: "Style the app", completed: false }
+  ]);
+- For progress bars and dynamic styling: Use inline styles for dynamic values
+- Progress bar example:
+  <div className="h-4 transition-all duration-300" 
+       style={{width: percentageValue + '%', backgroundColor: '#3b82f6'}} />
+- This ensures colors show properly in dark themes and hot reload environments
+- Use localStorage for persistence when appropriate
+
+DYNAMIC STYLING BEST PRACTICES:
+- Always use inline styles for ANY dynamic colors, backgrounds, or styles
+- Don't rely only on Tailwind classes for conditional styling - they may not load in hot reload
+- Examples of what needs inline styles:
+  * Progress bars: style={{width: progress + '%', backgroundColor: '#3b82f6'}}
+  * Todo completion: style={{color: completed ? '#EAB308' : '#000000'}}
+  * Status indicators: style={{backgroundColor: isActive ? '#10B981' : '#6B7280'}}
+  * Any color that changes based on state
+- Keep Tailwind classes for: layout, spacing, static styling
+- Use inline styles for: dynamic colors, conditional backgrounds, state-based styling
+- Show percentage text: "X of Y tasks completed (Z%)"
+- Test with sample data so progress is immediately visible
 
 WEBSITE CLONING REQUIREMENTS:
 When recreating/cloning a website, you MUST include:

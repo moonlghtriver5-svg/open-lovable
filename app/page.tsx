@@ -33,7 +33,7 @@ interface SandboxData {
 
 interface ChatMessage {
   content: string;
-  type: 'user' | 'ai' | 'system' | 'file-update' | 'command' | 'error';
+  type: 'user' | 'ai' | 'system' | 'file-update' | 'command' | 'error' | 'plan';
   timestamp: Date;
   metadata?: {
     scrapedUrl?: string;
@@ -66,6 +66,7 @@ function AISandboxPageContent() {
     const modelParam = searchParams.get('model');
     return appConfig.ai.availableModels.includes(modelParam || '') ? modelParam! : appConfig.ai.defaultModel;
   });
+  const [usePlanningMode, setUsePlanningMode] = useState(false);
   const [urlOverlayVisible, setUrlOverlayVisible] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [urlStatus, setUrlStatus] = useState<string[]>([]);
@@ -1557,7 +1558,8 @@ Tip: I automatically detect and install npm packages from your code imports (lik
           prompt: message,
           model: aiModel,
           context: fullContext,
-          isEdit: conversationContext.appliedCode.length > 0
+          isEdit: conversationContext.appliedCode.length > 0,
+          usePlanningMode: usePlanningMode
         })
       });
       
@@ -1585,6 +1587,9 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                 
                 if (data.type === 'status') {
                   setGenerationProgress(prev => ({ ...prev, status: data.message }));
+                } else if (data.type === 'plan') {
+                  // Add plan content to chat in real-time
+                  addChatMessage(data.content, 'plan');
                 } else if (data.type === 'thinking') {
                   setGenerationProgress(prev => ({ 
                     ...prev, 
@@ -2135,7 +2140,8 @@ Focus on the key sections and content, making it clean and modern while preservi
             sandboxId: sandboxData?.id,
             structure: structureContent,
             conversationContext: conversationContext
-          }
+          },
+          usePlanningMode: usePlanningMode
         })
       });
       
@@ -2163,6 +2169,9 @@ Focus on the key sections and content, making it clean and modern while preservi
                 
                 if (data.type === 'status') {
                   setGenerationProgress(prev => ({ ...prev, status: data.message }));
+                } else if (data.type === 'plan') {
+                  // Add plan content to chat in real-time
+                  addChatMessage(data.content, 'plan');
                 } else if (data.type === 'thinking') {
                   setGenerationProgress(prev => ({ 
                     ...prev, 
@@ -2691,6 +2700,20 @@ Focus on the key sections and content, making it clean and modern while preservi
               </option>
             ))}
           </select>
+          
+          {/* Planning Mode Toggle */}
+          <label className="flex items-center gap-2 text-sm cursor-pointer ml-2">
+            <input
+              type="checkbox"
+              checked={usePlanningMode}
+              onChange={(e) => setUsePlanningMode(e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <span className="text-gray-700 whitespace-nowrap">
+              🧠 Plan & Build
+            </span>
+          </label>
+          
           <Button 
             variant="code"
             onClick={() => createSandbox()}
@@ -2786,6 +2809,7 @@ Focus on the key sections and content, making it clean and modern while preservi
                       <div className={`block rounded-[10px] px-4 py-2 ${
                         msg.type === 'user' ? 'bg-[#36322F] text-white ml-auto max-w-[80%]' :
                         msg.type === 'ai' ? 'bg-gray-100 text-gray-900 mr-auto max-w-[80%]' :
+                        msg.type === 'plan' ? 'bg-blue-50 border border-blue-200 text-blue-900 mr-auto max-w-[90%]' :
                         msg.type === 'system' ? 'bg-[#36322F] text-white text-sm' :
                         msg.type === 'command' ? 'bg-[#36322F] text-white font-mono text-sm' :
                         msg.type === 'error' ? 'bg-red-900 text-red-100 text-sm border border-red-700' :

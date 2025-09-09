@@ -5,7 +5,7 @@ export const appConfig = {
   // E2B Sandbox Configuration
   e2b: {
     // Sandbox timeout in minutes
-    timeoutMinutes: 15,
+    timeoutMinutes: 60,
     
     // Convert to milliseconds for E2B API
     get timeoutMs() {
@@ -33,13 +33,21 @@ export const appConfig = {
     // Available models
     availableModels: [
       'moonshotai/kimi-k2-instruct-0905',
-      'openrouter/openai/gpt-5-chat'
+      'openrouter/openai/gpt-5-chat',
+      'openrouter/openai/gpt-5',
+      'openrouter/anthropic/claude-sonnet-4',
+      'openrouter/anthropic/claude-opus-4.1',
+      'openrouter/z-ai/glm-4.5'
     ],
     
     // Model display names
     modelDisplayNames: {
       'moonshotai/kimi-k2-instruct-0905': 'Kimi K2 Instruct 0905',
-      'openrouter/openai/gpt-5-chat': 'GPT-5 Chat (OpenRouter)'
+      'openrouter/openai/gpt-5-chat': 'GPT-5 Chat (OpenRouter)',
+      'openrouter/openai/gpt-5': 'GPT-5 (OpenRouter)',
+      'openrouter/anthropic/claude-sonnet-4': 'Claude 4 Sonnet (OpenRouter)',
+      'openrouter/anthropic/claude-opus-4.1': 'Claude 4.1 Opus (OpenRouter)',
+      'openrouter/z-ai/glm-4.5': 'GLM-4.5 (OpenRouter)'
     },
     
     // Temperature settings for non-reasoning models

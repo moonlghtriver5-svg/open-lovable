@@ -88,13 +88,19 @@ with open('/home/user/app/package.json', 'w') as f:
     json.dump(package_json, f, indent=2)
 print('✓ package.json')
 
-# Vite config for E2B - with allowedHosts
+# Vite config for E2B - with allowedHosts and @ alias
 vite_config = """import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // E2B-compatible Vite configuration
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,
