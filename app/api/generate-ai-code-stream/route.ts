@@ -181,7 +181,7 @@ async function handlePlanningMode(request: NextRequest, prompt: string, context:
         }
         
         // Stream the build output and capture generated files
-        let generatedFiles = {};
+        const generatedFiles: Record<string, string> = {};
         const buildReader = buildResponse.body?.getReader();
         if (buildReader) {
           while (true) {
@@ -199,7 +199,7 @@ async function handlePlanningMode(request: NextRequest, prompt: string, context:
                   // Capture file generation events
                   if (data.type === 'component' || data.type === 'file') {
                     // Store the generated file info for future planning
-                    if (data.path && data.content) {
+                    if (data.path && data.content && typeof data.path === 'string' && typeof data.content === 'string') {
                       generatedFiles[data.path] = data.content;
                     }
                   }
