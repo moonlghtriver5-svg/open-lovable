@@ -2516,15 +2516,6 @@ Focus on the key sections and content, making it clean and modern while preservi
           {/* Header */}
           <div className="absolute top-0 left-0 right-0 z-20 px-6 py-4 flex items-center justify-between animate-[fadeIn_0.8s_ease-out]">
             <ThemeLogo />
-            <a 
-              href="https://github.com/mendableai/open-lovable" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-[#36322F] text-white px-3 py-2 rounded-[10px] text-sm font-medium [box-shadow:inset_0px_-2px_0px_0px_#171310,_0px_1px_6px_0px_rgba(58,_33,_8,_58%)] hover:translate-y-[1px] hover:scale-[0.98] hover:[box-shadow:inset_0px_-1px_0px_0px_#171310,_0px_1px_3px_0px_rgba(58,_33,_8,_40%)] active:translate-y-[2px] active:scale-[0.97] active:[box-shadow:inset_0px_1px_1px_0px_#171310,_0px_1px_2px_0px_rgba(58,_33,_8,_30%)] transition-all duration-200"
-            >
-              <FiGithub className="w-4 h-4" />
-              <span>Use this template</span>
-            </a>
           </div>
           
           {/* Main content */}
@@ -2860,7 +2851,7 @@ Focus on the key sections and content, making it clean and modern while preservi
                       <div className={`block rounded-[10px] px-4 py-2 ${
                         msg.type === 'user' ? 'bg-[#36322F] text-white ml-auto max-w-[80%]' :
                         msg.type === 'ai' ? 'bg-gray-100 text-gray-900 mr-auto max-w-[80%]' :
-                        msg.type === 'plan' ? 'bg-blue-50 border border-blue-200 text-blue-900 mr-auto max-w-[90%]' :
+                        msg.type === 'plan' ? 'bg-gradient-to-br from-amber-50/80 to-yellow-50/60 backdrop-blur-sm border border-amber-200/50 text-amber-900 shadow-lg shadow-amber-500/10 mr-auto max-w-[90%]' :
                         msg.type === 'system' ? 'bg-[#36322F] text-white text-sm' :
                         msg.type === 'command' ? 'bg-[#36322F] text-white font-mono text-sm' :
                         msg.type === 'error' ? 'bg-red-900 text-red-100 text-sm border border-red-700' :
@@ -2897,16 +2888,16 @@ Focus on the key sections and content, making it clean and modern while preservi
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-blue-900">{children}</h1>,
-                          h2: ({ children }) => <h2 className="text-base font-semibold mb-1.5 text-blue-800">{children}</h2>,
-                          h3: ({ children }) => <h3 className="text-sm font-medium mb-1 text-blue-700">{children}</h3>,
+                          h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-amber-900">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-base font-semibold mb-1.5 text-amber-800">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-sm font-medium mb-1 text-amber-700">{children}</h3>,
                           p: ({ children }) => <p className="mb-2 text-sm">{children}</p>,
                           ul: ({ children }) => <ul className="list-disc list-inside mb-2 text-sm space-y-0.5">{children}</ul>,
                           ol: ({ children }) => <ol className="list-decimal list-inside mb-2 text-sm space-y-0.5">{children}</ol>,
                           li: ({ children }) => <li className="text-sm">{children}</li>,
-                          strong: ({ children }) => <strong className="font-semibold text-blue-900">{children}</strong>,
-                          em: ({ children }) => <em className="italic text-blue-800">{children}</em>,
-                          code: ({ children }) => <code className="bg-blue-100 text-blue-900 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+                          strong: ({ children }) => <strong className="font-semibold text-amber-900">{children}</strong>,
+                          em: ({ children }) => <em className="italic text-amber-800">{children}</em>,
+                          code: ({ children }) => <code className="bg-amber-100/60 text-amber-900 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
                         }}
                       >
                         {msg.content}
