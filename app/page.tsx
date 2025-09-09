@@ -67,6 +67,7 @@ function AISandboxPageContent() {
     return appConfig.ai.availableModels.includes(modelParam || '') ? modelParam! : appConfig.ai.defaultModel;
   });
   const [usePlanningMode, setUsePlanningMode] = useState(false);
+  const [currentPlanMessage, setCurrentPlanMessage] = useState<string>('');
   const [urlOverlayVisible, setUrlOverlayVisible] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [urlStatus, setUrlStatus] = useState<string[]>([]);
@@ -1514,6 +1515,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
     
     try {
       // Generation tab is already active from scraping phase
+      setCurrentPlanMessage(''); // Reset plan message for new generation
       setGenerationProgress(prev => ({
         ...prev,  // Preserve all existing state
         isGenerating: true,
@@ -1588,8 +1590,31 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                 if (data.type === 'status') {
                   setGenerationProgress(prev => ({ ...prev, status: data.message }));
                 } else if (data.type === 'plan') {
-                  // Add plan content to chat in real-time
-                  addChatMessage(data.content, 'plan');
+                  // Accumulate plan content in one streaming message
+                  setCurrentPlanMessage(prev => {
+                    const newContent = prev + data.content;
+                    
+                    // Update or create the plan message
+                    setChatMessages(messages => {
+                      const lastMessage = messages[messages.length - 1];
+                      if (lastMessage && lastMessage.type === 'plan') {
+                        // Update existing plan message
+                        return [...messages.slice(0, -1), {
+                          ...lastMessage,
+                          content: newContent
+                        }];
+                      } else {
+                        // Create new plan message
+                        return [...messages, {
+                          content: newContent,
+                          type: 'plan',
+                          timestamp: new Date()
+                        }];
+                      }
+                    });
+                    
+                    return newContent;
+                  });
                 } else if (data.type === 'thinking') {
                   setGenerationProgress(prev => ({ 
                     ...prev, 
@@ -2111,6 +2136,7 @@ IMAGE HANDLING RULES:
 
 Focus on the key sections and content, making it clean and modern while preserving visual assets.`;
       
+      setCurrentPlanMessage(''); // Reset plan message for new generation
       setGenerationProgress(prev => ({
         isGenerating: true,
         status: 'Initializing AI...',
@@ -2170,8 +2196,31 @@ Focus on the key sections and content, making it clean and modern while preservi
                 if (data.type === 'status') {
                   setGenerationProgress(prev => ({ ...prev, status: data.message }));
                 } else if (data.type === 'plan') {
-                  // Add plan content to chat in real-time
-                  addChatMessage(data.content, 'plan');
+                  // Accumulate plan content in one streaming message
+                  setCurrentPlanMessage(prev => {
+                    const newContent = prev + data.content;
+                    
+                    // Update or create the plan message
+                    setChatMessages(messages => {
+                      const lastMessage = messages[messages.length - 1];
+                      if (lastMessage && lastMessage.type === 'plan') {
+                        // Update existing plan message
+                        return [...messages.slice(0, -1), {
+                          ...lastMessage,
+                          content: newContent
+                        }];
+                      } else {
+                        // Create new plan message
+                        return [...messages, {
+                          content: newContent,
+                          type: 'plan',
+                          timestamp: new Date()
+                        }];
+                      }
+                    });
+                    
+                    return newContent;
+                  });
                 } else if (data.type === 'thinking') {
                   setGenerationProgress(prev => ({ 
                     ...prev, 

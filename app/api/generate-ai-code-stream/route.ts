@@ -165,9 +165,12 @@ async function handlePlanningMode(request: NextRequest, prompt: string, context:
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            prompt: `IMPLEMENTATION PLAN:\n${fullPlan}\n\nORIGINAL REQUEST: ${prompt}\n\nImplement the above plan exactly. Generate all necessary code files.`, 
+            prompt: prompt, // Use original prompt
             model: 'openrouter/anthropic/claude-sonnet-4',
-            context,
+            context: {
+              ...context,
+              implementationPlan: fullPlan // Add plan as context
+            },
             isEdit: false,
             usePlanningMode: false // Prevent recursion
           })
@@ -695,8 +698,22 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
           }
         }
         
+        // Check if we have an implementation plan from planning stage
+        let implementationPlanContext = '';
+        if (context?.implementationPlan) {
+          implementationPlanContext = `
+
+🧠 IMPLEMENTATION PLAN:
+You have been provided with a detailed implementation plan that you MUST follow exactly:
+
+${context.implementationPlan}
+
+FOLLOW THE PLAN: Implement the above plan step-by-step. Generate all components, files, and code as specified in the plan.
+`;
+        }
+
         // Build system prompt with conversation awareness
-        const systemPrompt = `You are a WORLD-CLASS React developer and UI/UX designer with perfect memory of the conversation. You maintain context across messages and remember scraped websites, generated components, and applied code. 
+        const systemPrompt = `You are a WORLD-CLASS React developer and UI/UX designer with perfect memory of the conversation. You maintain context across messages and remember scraped websites, generated components, and applied code.${implementationPlanContext} 
 
 🎨 DESIGN EXCELLENCE - YOU ARE A MASTER DESIGNER:
 You create stunning, professional-grade interfaces that rival the best companies in the world. Your designs are:

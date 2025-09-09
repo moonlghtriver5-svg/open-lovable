@@ -119,7 +119,7 @@ PLANNING RESPONSE:`;
     console.log('[plan-ai-code] Using Claude Opus 4.1 for planning...');
     
     const result = await streamText({
-      model: openrouter('anthropic/claude-3-5-sonnet-20241022'), // Using Sonnet for now, will switch to Opus when available
+      model: openrouter('anthropic/claude-opus-4.1'),
       messages: [
         { 
           role: 'system', 
