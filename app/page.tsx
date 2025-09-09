@@ -70,6 +70,7 @@ function AISandboxPageContent() {
   });
   const [usePlanningMode, setUsePlanningMode] = useState(false);
   const [currentPlanMessage, setCurrentPlanMessage] = useState<string>('');
+  const [currentConversationMessage, setCurrentConversationMessage] = useState<string>('');
   const [urlOverlayVisible, setUrlOverlayVisible] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [urlStatus, setUrlStatus] = useState<string[]>([]);
@@ -1518,6 +1519,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
     try {
       // Generation tab is already active from scraping phase
       setCurrentPlanMessage(''); // Reset plan message for new generation
+      setCurrentConversationMessage(''); // Reset conversation message for new generation
       setGenerationProgress(prev => ({
         ...prev,  // Preserve all existing state
         isGenerating: true,
@@ -1630,19 +1632,44 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                     thinkingDuration: data.duration
                   }));
                 } else if (data.type === 'conversation') {
-                  // Add conversational text to chat only if it's not code
-                  let text = data.text || '';
-                  
-                  // Remove package tags from the text
-                  text = text.replace(/<package>[^<]*<\/package>/g, '');
-                  text = text.replace(/<packages>[^<]*<\/packages>/g, '');
-                  
-                  // Filter out any XML tags and file content that slipped through
-                  if (!text.includes('<file') && !text.includes('import React') && 
-                      !text.includes('export default') && !text.includes('className=') &&
-                      text.trim().length > 0) {
-                    addChatMessage(text.trim(), 'ai');
-                  }
+                  // Accumulate conversational text - similar to plan messages
+                  setCurrentConversationMessage(prev => {
+                    const newContent = prev + (data.text || '');
+                    
+                    // Clean up the text
+                    let cleanText = newContent
+                      .replace(/<package>[^<]*<\/package>/g, '')
+                      .replace(/<packages>[^<]*<\/packages>/g, '');
+                    
+                    // Only show text that's clearly conversational (not code)
+                    if (!cleanText.includes('<file') && 
+                        !cleanText.includes('```') &&
+                        cleanText.trim().length > 0) {
+                      
+                      // Update or create the conversation message
+                      setChatMessages(messages => {
+                        const lastMessage = messages[messages.length - 1];
+                        if (lastMessage && lastMessage.type === 'ai' && 
+                            lastMessage.content !== 'Code generated!' && 
+                            !lastMessage.content.includes('Successfully')) {
+                          // Update existing AI message
+                          return [...messages.slice(0, -1), {
+                            ...lastMessage,
+                            content: cleanText.trim()
+                          }];
+                        } else {
+                          // Create new AI message
+                          return [...messages, {
+                            content: cleanText.trim(),
+                            type: 'ai',
+                            timestamp: new Date()
+                          }];
+                        }
+                      });
+                    }
+                    
+                    return newContent;
+                  });
                 } else if (data.type === 'stream' && data.raw) {
                   setGenerationProgress(prev => {
                     const newStreamedCode = prev.streamedCode + data.text;
@@ -2139,6 +2166,7 @@ IMAGE HANDLING RULES:
 Focus on the key sections and content, making it clean and modern while preserving visual assets.`;
       
       setCurrentPlanMessage(''); // Reset plan message for new generation
+      setCurrentConversationMessage(''); // Reset conversation message for new generation
       setGenerationProgress(prev => ({
         isGenerating: true,
         status: 'Initializing AI...',
@@ -2236,19 +2264,44 @@ Focus on the key sections and content, making it clean and modern while preservi
                     thinkingDuration: data.duration
                   }));
                 } else if (data.type === 'conversation') {
-                  // Add conversational text to chat only if it's not code
-                  let text = data.text || '';
-                  
-                  // Remove package tags from the text
-                  text = text.replace(/<package>[^<]*<\/package>/g, '');
-                  text = text.replace(/<packages>[^<]*<\/packages>/g, '');
-                  
-                  // Filter out any XML tags and file content that slipped through
-                  if (!text.includes('<file') && !text.includes('import React') && 
-                      !text.includes('export default') && !text.includes('className=') &&
-                      text.trim().length > 0) {
-                    addChatMessage(text.trim(), 'ai');
-                  }
+                  // Accumulate conversational text - similar to plan messages
+                  setCurrentConversationMessage(prev => {
+                    const newContent = prev + (data.text || '');
+                    
+                    // Clean up the text
+                    let cleanText = newContent
+                      .replace(/<package>[^<]*<\/package>/g, '')
+                      .replace(/<packages>[^<]*<\/packages>/g, '');
+                    
+                    // Only show text that's clearly conversational (not code)
+                    if (!cleanText.includes('<file') && 
+                        !cleanText.includes('```') &&
+                        cleanText.trim().length > 0) {
+                      
+                      // Update or create the conversation message
+                      setChatMessages(messages => {
+                        const lastMessage = messages[messages.length - 1];
+                        if (lastMessage && lastMessage.type === 'ai' && 
+                            lastMessage.content !== 'Code generated!' && 
+                            !lastMessage.content.includes('Successfully')) {
+                          // Update existing AI message
+                          return [...messages.slice(0, -1), {
+                            ...lastMessage,
+                            content: cleanText.trim()
+                          }];
+                        } else {
+                          // Create new AI message
+                          return [...messages, {
+                            content: cleanText.trim(),
+                            type: 'ai',
+                            timestamp: new Date()
+                          }];
+                        }
+                      });
+                    }
+                    
+                    return newContent;
+                  });
                 } else if (data.type === 'stream' && data.raw) {
                   setGenerationProgress(prev => ({ 
                     ...prev, 
