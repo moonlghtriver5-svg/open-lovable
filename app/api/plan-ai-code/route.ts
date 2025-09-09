@@ -66,49 +66,26 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    const planningPrompt = `You are a world-class software architect and technical planning expert. Your role is to create detailed, actionable implementation plans for React applications.
+    const planningPrompt = `You are a concise software architect. Create a BRIEF, actionable implementation plan.
 
-🎯 PLANNING TASK:
-Analyze the user's request and create a comprehensive implementation plan. Consider the existing application context and provide a detailed roadmap.
+📋 PLAN FORMAT (Keep each section SHORT):
 
-📋 PLAN FORMAT:
-Your response should be structured as follows:
+## 🎯 Goal
+- 1-2 sentence summary of what to build
 
-## 🎯 Understanding
-- What the user wants to achieve
-- How this fits with the existing application
-- Key requirements identified
+## 🛠️ Steps
+1. [Brief step]
+2. [Brief step] 
+3. [Brief step]
+(Max 5-6 steps)
 
-## 📐 Architecture
-- Component structure needed
-- File organization
-- State management approach
-- Dependencies/packages required
+## 📦 Dependencies
+- List any new packages needed (prefer Radix UI for components)
 
-## 🛠️ Implementation Steps
-1. Step 1 - Detailed description
-2. Step 2 - Detailed description  
-3. Step 3 - Detailed description
-[Continue with all steps...]
+## 🎨 Key Features
+- Bullet list of main functionality
 
-## 🎨 Design Considerations
-- UI/UX approach
-- Styling strategy
-- Responsive design needs
-- Interactive elements
-
-## 📦 Technical Details
-- State management
-- Data flow
-- Performance considerations
-- Accessibility needs
-
-## ✅ Acceptance Criteria
-- What defines "done"
-- Key functionality checklist
-- Quality standards
-
-Keep your plan DETAILED but CONCISE. Focus on actionable steps that a developer can follow.
+Keep it CONCISE and ACTIONABLE. Maximum 200 words total.
 
 USER REQUEST: "${prompt}"
 

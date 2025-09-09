@@ -21,6 +21,8 @@ import {
   SiJson 
 } from '@/lib/icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import CodeApplicationProgress, { type CodeApplicationState } from '@/components/CodeApplicationProgress';
 import { ThemeToggle } from '@/app/components/theme-toggle';
 import { ThemeLogo } from '@/app/components/theme-logo';
@@ -2891,6 +2893,24 @@ Focus on the key sections and content, making it clean and modern while preservi
                           <div className="mt-2 text-xs opacity-70">Press 'F' or click the Fix button above to resolve</div>
                         </div>
                       </div>
+                    ) : msg.type === 'plan' ? (
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-blue-900">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-base font-semibold mb-1.5 text-blue-800">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-sm font-medium mb-1 text-blue-700">{children}</h3>,
+                          p: ({ children }) => <p className="mb-2 text-sm">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc list-inside mb-2 text-sm space-y-0.5">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal list-inside mb-2 text-sm space-y-0.5">{children}</ol>,
+                          li: ({ children }) => <li className="text-sm">{children}</li>,
+                          strong: ({ children }) => <strong className="font-semibold text-blue-900">{children}</strong>,
+                          em: ({ children }) => <em className="italic text-blue-800">{children}</em>,
+                          code: ({ children }) => <code className="bg-blue-100 text-blue-900 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
                     ) : (
                       msg.content
                     )}
