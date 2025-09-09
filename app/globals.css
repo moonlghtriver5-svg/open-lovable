@@ -113,6 +113,15 @@
   }
 }
 
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* Theme configuration for Tailwind CSS v4 */
 @theme {
   --color-background: hsl(0 0% 100%);

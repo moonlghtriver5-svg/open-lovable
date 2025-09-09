@@ -2904,7 +2904,7 @@ Focus on the key sections and content, making it clean and modern while preservi
                       <div className={`block rounded-[10px] px-4 py-2 ${
                         msg.type === 'user' ? 'bg-[#36322F] text-white ml-auto max-w-[80%]' :
                         msg.type === 'ai' ? 'bg-gray-100 text-gray-900 mr-auto max-w-[80%]' :
-                        msg.type === 'plan' ? 'bg-gradient-to-br from-amber-50/80 to-yellow-50/60 backdrop-blur-sm border border-amber-200/50 text-amber-900 shadow-lg shadow-amber-500/10 mr-auto max-w-[90%]' :
+                        msg.type === 'plan' ? 'bg-gradient-to-br from-blue-50/80 to-indigo-50/60 backdrop-blur-sm border border-blue-200/50 text-blue-900 shadow-lg shadow-blue-500/10 mr-auto max-w-[90%] relative overflow-hidden' :
                         msg.type === 'system' ? 'bg-[#36322F] text-white text-sm' :
                         msg.type === 'command' ? 'bg-[#36322F] text-white font-mono text-sm' :
                         msg.type === 'error' ? 'bg-red-900 text-red-100 text-sm border border-red-700' :
@@ -2938,23 +2938,32 @@ Focus on the key sections and content, making it clean and modern while preservi
                         </div>
                       </div>
                     ) : msg.type === 'plan' ? (
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-amber-900">{children}</h1>,
-                          h2: ({ children }) => <h2 className="text-base font-semibold mb-1.5 text-amber-800">{children}</h2>,
-                          h3: ({ children }) => <h3 className="text-sm font-medium mb-1 text-amber-700">{children}</h3>,
+                      <>
+                        {/* Shining animation overlay */}
+                        <div className="absolute inset-0 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" 
+                             style={{
+                               background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                               animationDelay: '1s'
+                             }} />
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          className="relative z-10"
+                          components={{
+                          h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-blue-900">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-base font-semibold mb-1.5 text-blue-800">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-sm font-medium mb-1 text-blue-700">{children}</h3>,
                           p: ({ children }) => <p className="mb-2 text-sm">{children}</p>,
                           ul: ({ children }) => <ul className="list-disc list-inside mb-2 text-sm space-y-0.5">{children}</ul>,
                           ol: ({ children }) => <ol className="list-decimal list-inside mb-2 text-sm space-y-0.5">{children}</ol>,
                           li: ({ children }) => <li className="text-sm">{children}</li>,
-                          strong: ({ children }) => <strong className="font-semibold text-amber-900">{children}</strong>,
-                          em: ({ children }) => <em className="italic text-amber-800">{children}</em>,
-                          code: ({ children }) => <code className="bg-amber-100/60 text-amber-900 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+                          strong: ({ children }) => <strong className="font-semibold text-blue-900">{children}</strong>,
+                          em: ({ children }) => <em className="italic text-blue-800">{children}</em>,
+                          code: ({ children }) => <code className="bg-blue-100/60 text-blue-900 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
                         }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
+                      </>
                     ) : (
                       msg.content
                     )}
