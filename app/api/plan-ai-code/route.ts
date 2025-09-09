@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     let planningContext = '';
     
     // Get current files from context or global conversation state
-    const currentFiles = context?.currentFiles || global.conversationState?.context?.currentFiles || {};
+    const currentFiles = context?.currentFiles || (global as any).conversationState?.context?.currentFiles || {};
     
     // Include existing app context if available
     if (Object.keys(currentFiles).length > 0) {
