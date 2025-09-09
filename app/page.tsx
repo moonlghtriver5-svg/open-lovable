@@ -2945,10 +2945,10 @@ Focus on the key sections and content, making it clean and modern while preservi
                                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
                                animationDelay: '1s'
                              }} />
-                        <ReactMarkdown 
-                          remarkPlugins={[remarkGfm]}
-                          className="relative z-10"
-                          components={{
+                        <div className="relative z-10">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
                           h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-blue-900">{children}</h1>,
                           h2: ({ children }) => <h2 className="text-base font-semibold mb-1.5 text-blue-800">{children}</h2>,
                           h3: ({ children }) => <h3 className="text-sm font-medium mb-1 text-blue-700">{children}</h3>,
@@ -2960,9 +2960,10 @@ Focus on the key sections and content, making it clean and modern while preservi
                           em: ({ children }) => <em className="italic text-blue-800">{children}</em>,
                           code: ({ children }) => <code className="bg-blue-100/60 text-blue-900 px-1 py-0.5 rounded text-xs font-mono">{children}</code>
                         }}
-                        >
-                          {msg.content}
-                        </ReactMarkdown>
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
                       </>
                     ) : (
                       msg.content
