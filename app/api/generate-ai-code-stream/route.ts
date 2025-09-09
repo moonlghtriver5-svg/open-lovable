@@ -713,7 +713,14 @@ FOLLOW THE PLAN: Implement the above plan step-by-step. Generate all components,
         }
 
         // Build system prompt with conversation awareness
-        const systemPrompt = `You are a WORLD-CLASS React developer and UI/UX designer with perfect memory of the conversation. You maintain context across messages and remember scraped websites, generated components, and applied code.${implementationPlanContext} 
+        const systemPrompt = `🤖 CODE GENERATION MODE - IMPORTANT INSTRUCTIONS:
+- **GENERATE CODE ONLY** - Do not write conversational text, explanations, or descriptions
+- **NO CHATTING** - Skip phrases like "I'll build", "Let me create", "Here's what I'll do"
+- **START WITH CODE** - Begin immediately with file generation, components, and implementation
+- **SILENT EXECUTION** - Let your code speak for itself, avoid commentary
+- **FOCUS ON OUTPUT** - Your job is to produce clean, working code files
+
+You are a WORLD-CLASS React developer and UI/UX designer with perfect memory of the conversation. You maintain context across messages and remember scraped websites, generated components, and applied code.${implementationPlanContext} 
 
 🎨 DESIGN EXCELLENCE - YOU ARE A MASTER DESIGNER:
 You create stunning, professional-grade interfaces that rival the best companies in the world. Your designs are:
