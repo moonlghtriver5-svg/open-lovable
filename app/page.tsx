@@ -1642,10 +1642,34 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                       .replace(/<package>[^<]*<\/package>/g, '')
                       .replace(/<packages>[^<]*<\/packages>/g, '');
                     
-                    // Only show text that's clearly conversational (not code)
-                    if (!cleanText.includes('<file') && 
-                        !cleanText.includes('```') &&
-                        cleanText.trim().length > 0) {
+                    // STRICT filtering - only allow pure conversational text
+                    const isCode = cleanText.includes('<file') || 
+                        cleanText.includes('```') ||
+                        cleanText.includes('import ') ||
+                        cleanText.includes('export ') ||
+                        cleanText.includes('function ') ||
+                        cleanText.includes('const ') ||
+                        cleanText.includes('useState') ||
+                        cleanText.includes('useEffect') ||
+                        cleanText.includes('className') ||
+                        cleanText.includes('onClick') ||
+                        cleanText.includes('src/') ||
+                        cleanText.includes('path="') ||
+                        cleanText.includes('<') ||
+                        cleanText.includes('>') ||
+                        cleanText.includes('{') ||
+                        cleanText.includes('}') ||
+                        cleanText.includes('jsx') ||
+                        cleanText.includes('React') ||
+                        cleanText.includes('component') ||
+                        cleanText.includes('return') ||
+                        cleanText.includes('=') ||
+                        cleanText.includes(';') ||
+                        cleanText.includes('(') ||
+                        cleanText.includes(')') ||
+                        cleanText.length > 150; // Long text is probably code
+                    
+                    if (!isCode && cleanText.trim().length > 0) {
                       
                       // Update or create the conversation message
                       setChatMessages(messages => {
@@ -2274,10 +2298,34 @@ Focus on the key sections and content, making it clean and modern while preservi
                       .replace(/<package>[^<]*<\/package>/g, '')
                       .replace(/<packages>[^<]*<\/packages>/g, '');
                     
-                    // Only show text that's clearly conversational (not code)
-                    if (!cleanText.includes('<file') && 
-                        !cleanText.includes('```') &&
-                        cleanText.trim().length > 0) {
+                    // STRICT filtering - only allow pure conversational text
+                    const isCode = cleanText.includes('<file') || 
+                        cleanText.includes('```') ||
+                        cleanText.includes('import ') ||
+                        cleanText.includes('export ') ||
+                        cleanText.includes('function ') ||
+                        cleanText.includes('const ') ||
+                        cleanText.includes('useState') ||
+                        cleanText.includes('useEffect') ||
+                        cleanText.includes('className') ||
+                        cleanText.includes('onClick') ||
+                        cleanText.includes('src/') ||
+                        cleanText.includes('path="') ||
+                        cleanText.includes('<') ||
+                        cleanText.includes('>') ||
+                        cleanText.includes('{') ||
+                        cleanText.includes('}') ||
+                        cleanText.includes('jsx') ||
+                        cleanText.includes('React') ||
+                        cleanText.includes('component') ||
+                        cleanText.includes('return') ||
+                        cleanText.includes('=') ||
+                        cleanText.includes(';') ||
+                        cleanText.includes('(') ||
+                        cleanText.includes(')') ||
+                        cleanText.length > 150; // Long text is probably code
+                    
+                    if (!isCode && cleanText.trim().length > 0) {
                       
                       // Update or create the conversation message
                       setChatMessages(messages => {
