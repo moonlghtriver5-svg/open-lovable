@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { streamText } from 'ai';
 import { createPlannerContext, createBuilderContext } from '@/lib/smart-context-retrieval';
+import { createSupervisorContext } from '@/lib/context-analyzer';
 import { generatePlannerPrompt, generateBuilderPrompt, generateValidatorPrompt, generateErrorRecoveryPrompt } from '@/lib/prompt-templates';
 import { detectErrors, autoFixCode, createErrorContext, validateCode } from '@/lib/error-detector';
 
@@ -39,8 +40,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Phase 1: Planner Agent Analysis with Smart Context Retrieval
-    const plannerContext = createPlannerContext(prompt, context?.currentFiles || {});
-    console.log('[agentic-workflow] Planner context tokens:', plannerContext.totalTokens);
+    const currentFiles = context?.currentFiles || {};
+    console.log('[agentic-workflow] Current files available:', Object.keys(currentFiles));
+    
+    let plannerContext;
+    try {
+      plannerContext = createPlannerContext(prompt, currentFiles);
+      console.log('[agentic-workflow] Planner context tokens:', plannerContext.totalTokens);
+    } catch (error) {
+      console.error('[agentic-workflow] Error creating planner context:', error);
+      // Fallback to supervisor context from context-analyzer
+      plannerContext = createSupervisorContext(prompt, currentFiles);
+      console.log('[agentic-workflow] Using supervisor context fallback');
+    }
 
     const plannerResult = await runPlannerAgent(prompt, plannerContext);
     
