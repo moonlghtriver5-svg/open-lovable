@@ -39,20 +39,17 @@ export async function POST(request: NextRequest) {
       }, { status: 400, headers: corsHeaders });
     }
 
-    // Phase 1: Planner Agent Analysis with Smart Context Retrieval
-    const currentFiles = context?.currentFiles || {};
-    console.log('[agentic-workflow] Current files available:', Object.keys(currentFiles));
+    // Phase 1: Planner Agent Analysis - Simple Fallback for Now
+    console.log('[agentic-workflow] Starting simple planner approach');
     
-    let plannerContext;
-    try {
-      plannerContext = createPlannerContext(prompt, currentFiles);
-      console.log('[agentic-workflow] Planner context tokens:', plannerContext.totalTokens);
-    } catch (error) {
-      console.error('[agentic-workflow] Error creating planner context:', error);
-      // Fallback to supervisor context from context-analyzer
-      plannerContext = createSupervisorContext(prompt);
-      console.log('[agentic-workflow] Using supervisor context fallback');
-    }
+    // Create simple planner context
+    const plannerContext = {
+      relevantFiles: context?.currentFiles || {},
+      patterns: [],
+      constraints: ['Generate working React code', 'Use modern patterns', 'Include proper TypeScript types'],
+      examples: '',
+      totalTokens: 500 // Estimated
+    };
 
     const plannerResult = await runPlannerAgent(prompt, plannerContext);
     
@@ -139,17 +136,26 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Planner Agent - Strategic Planning with Smart Context Retrieval
+// Planner Agent - Strategic Planning (Simplified)
 async function runPlannerAgent(userRequest: string, context: any) {
   try {
-    // Generate structured prompt using the new template system
-    const { system, user } = generatePlannerPrompt(userRequest, context);
+    const plannerPrompt = `You are a strategic planner. Create a JSON plan for: "${userRequest}"
+
+Respond with JSON only:
+{
+  "taskAnalysis": "Brief analysis",
+  "implementationSteps": ["step 1", "step 2", "step 3"],
+  "buildInstructions": "Specific instructions",
+  "constraints": ["constraint 1", "constraint 2"],
+  "codeExamples": "Relevant patterns",
+  "riskFactors": ["risk 1", "risk 2"]
+}`;
 
     const result = await streamText({
-      model: openrouter('anthropic/claude-opus-4.1'),
+      model: openrouter('anthropic/claude-3-5-sonnet-20241022'),
       messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user }
+        { role: 'system', content: 'You are a strategic planner. Always respond with valid JSON.' },
+        { role: 'user', content: plannerPrompt }
       ],
       temperature: 0.2
     });
@@ -197,12 +203,14 @@ async function executeWithRetry(
     console.log(`[agentic-workflow] Execution attempt ${attempt}/${maxRetries + 1}`);
 
     try {
-      // Create targeted context for builder
-      const builderContext = createBuilderContext(
-        userRequest,
-        plannerOutput,
-        context?.currentFiles || {}
-      );
+      // Create simple context for builder
+      const builderContext = {
+        relevantFiles: context?.currentFiles || {},
+        patterns: [],
+        constraints: ['Generate complete code', 'Use TypeScript'],
+        examples: '',
+        totalTokens: 300
+      };
 
       console.log('[agentic-workflow] Builder context tokens:', builderContext.totalTokens);
 
@@ -262,17 +270,27 @@ async function executeWithRetry(
   };
 }
 
-// Builder Agent - Code Generation with Smart Context and Structured Prompting
+// Builder Agent - Code Generation (Simplified)
 async function runBuilderAgent(userRequest: string, context: any, plannerOutput?: any) {
   try {
-    // Generate structured prompt using the new template system
-    const { system, user } = generateBuilderPrompt(plannerOutput, context);
+    const builderPrompt = `Generate complete, working code for: "${userRequest}"
+
+INSTRUCTIONS:
+${plannerOutput?.buildInstructions || 'Create high-quality React code'}
+
+CONSTRAINTS:
+- Use modern React patterns with hooks
+- Include proper TypeScript types
+- Generate complete, working code only
+- No placeholders or TODOs
+
+Generate ONLY code files. No explanations.`;
 
     const result = await streamText({
       model: openrouter('anthropic/claude-3-5-sonnet-20241022'),
       messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user }
+        { role: 'system', content: 'You are a code generation specialist. Generate clean, working code only.' },
+        { role: 'user', content: builderPrompt }
       ],
       temperature: 0.1
     });
