@@ -70,6 +70,7 @@ function AISandboxPageContent() {
     return appConfig.ai.availableModels.includes(modelParam || '') ? modelParam! : appConfig.ai.defaultModel;
   });
   const [usePlanningMode, setUsePlanningMode] = useState(false);
+  const [useAgenticWorkflow, setUseAgenticWorkflow] = useState(false);
   const [currentPlanMessage, setCurrentPlanMessage] = useState<string>('');
   const [currentConversationMessage, setCurrentConversationMessage] = useState<string>('');
   const [urlOverlayVisible, setUrlOverlayVisible] = useState(false);
@@ -2153,19 +2154,35 @@ Focus on the key sections and content, making it clean and modern while preservi
       // Switch to generation tab when starting
       setActiveTab('generation');
       
-      const aiResponse = await fetch('/api/generate-ai-code-stream', {
+      // Choose API endpoint based on workflow mode
+      const apiEndpoint = useAgenticWorkflow ? '/api/agentic-workflow' : '/api/generate-ai-code-stream';
+      
+      const requestBody = useAgenticWorkflow 
+        ? {
+            prompt: recreatePrompt,
+            context: {
+              sandboxId: sandboxData?.id,
+              structure: structureContent,
+              conversationContext: conversationContext,
+              currentFiles: (conversationContext as any)?.context?.currentFiles || {}
+            },
+            maxRetries: 2
+          }
+        : {
+            prompt: recreatePrompt,
+            model: aiModel,
+            context: {
+              sandboxId: sandboxData?.id,
+              structure: structureContent,
+              conversationContext: conversationContext
+            },
+            usePlanningMode: usePlanningMode
+          };
+
+      const aiResponse = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: recreatePrompt,
-          model: aiModel,
-          context: {
-            sandboxId: sandboxData?.id,
-            structure: structureContent,
-            conversationContext: conversationContext
-          },
-          usePlanningMode: usePlanningMode
-        })
+        body: JSON.stringify(requestBody)
       });
       
       if (!aiResponse.ok) {
@@ -2739,6 +2756,19 @@ Focus on the key sections and content, making it clean and modern while preservi
             />
             <span className="text-gray-700 whitespace-nowrap">
               🧠 Plan & Build
+            </span>
+          </label>
+
+          {/* Agentic Workflow Toggle */}
+          <label className="flex items-center gap-2 text-sm cursor-pointer ml-2">
+            <input
+              type="checkbox"
+              checked={useAgenticWorkflow}
+              onChange={(e) => setUseAgenticWorkflow(e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <span className="text-gray-700 whitespace-nowrap">
+              🤖 Agentic (Auto-Fix)
             </span>
           </label>
           
