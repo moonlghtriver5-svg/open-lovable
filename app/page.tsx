@@ -70,7 +70,6 @@ function AISandboxPageContent() {
     return appConfig.ai.availableModels.includes(modelParam || '') ? modelParam! : appConfig.ai.defaultModel;
   });
   const [usePlanningMode, setUsePlanningMode] = useState(false);
-  const [useAgenticWorkflow, setUseAgenticWorkflow] = useState(false);
   const [currentPlanMessage, setCurrentPlanMessage] = useState<string>('');
   const [currentConversationMessage, setCurrentConversationMessage] = useState<string>('');
   const [urlOverlayVisible, setUrlOverlayVisible] = useState(false);
@@ -2269,30 +2268,25 @@ Focus on the key sections and content, making it clean and modern while preservi
       // Switch to generation tab when starting
       setActiveTab('generation');
       
-      // Choose API endpoint based on workflow mode
-      const apiEndpoint = useAgenticWorkflow ? '/api/agentic-workflow' : '/api/generate-ai-code-stream';
+      // Choose API endpoint based on mode - use v2 enhanced APIs
+      const apiEndpoint = usePlanningMode ? '/api/plan-v2-enhanced' : '/api/generate-v2-enhanced';
       
-      const requestBody = useAgenticWorkflow 
-        ? {
-            prompt: recreatePrompt,
-            context: {
-              sandboxId: sandboxData?.id,
-              structure: structureContent,
-              conversationContext: conversationContext,
-              currentFiles: (conversationContext as any)?.context?.currentFiles || {}
-            },
-            maxRetries: 2
-          }
-        : {
-            prompt: recreatePrompt,
-            model: aiModel,
-            context: {
-              sandboxId: sandboxData?.id,
-              structure: structureContent,
-              conversationContext: conversationContext
-            },
-            usePlanningMode: usePlanningMode
-          };
+      // Both v2 enhanced APIs use the same request structure  
+      const requestBody = {
+        prompt: recreatePrompt,
+        context: {
+          currentFiles: (conversationContext as any)?.context?.currentFiles || {},
+          structure: structureContent,
+          sandboxId: sandboxData?.id
+        },
+        conversationHistory: chatMessages.map(msg => ({
+          role: msg.type === 'user' ? 'user' : 'assistant',
+          content: msg.content,
+          timestamp: msg.timestamp,
+          metadata: msg.metadata
+        })),
+        useMultiPhaseReasoning: true
+      };
 
       const aiResponse = await fetch(apiEndpoint, {
         method: 'POST',
@@ -2874,18 +2868,6 @@ Focus on the key sections and content, making it clean and modern while preservi
             </span>
           </label>
 
-          {/* Agentic Workflow Toggle */}
-          <label className="flex items-center gap-2 text-sm cursor-pointer ml-2">
-            <input
-              type="checkbox"
-              checked={useAgenticWorkflow}
-              onChange={(e) => setUseAgenticWorkflow(e.target.checked)}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-            />
-            <span className="text-gray-700 whitespace-nowrap">
-              🤖 Agentic (Auto-Fix)
-            </span>
-          </label>
           
           <Button 
             variant="code"
