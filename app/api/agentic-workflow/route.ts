@@ -332,24 +332,49 @@ INSTRUCTIONS:
     
     console.log('[planner] Streaming complete. Model used:', modelUsed, 'Total chunks:', chunkCount, 'Total response length:', responseText.length);
 
-    // Parse planner output with fallback
+    // Parse planner output with better JSON extraction
     try {
-      const plannerOutput = JSON.parse(responseText);
-      return { success: true, output: plannerOutput };
-    } catch (parseError) {
-      console.error('[planner] JSON parse error:', parseError);
-      console.log('[planner] Raw response:', responseText.substring(0, 200));
+      // Try direct JSON parse first
+      let plannerOutput;
+      try {
+        plannerOutput = JSON.parse(responseText);
+        console.log('[planner] Direct JSON parse successful');
+      } catch (directParseError) {
+        // Extract JSON from markdown code blocks
+        console.log('[planner] Direct JSON parse failed, trying to extract from markdown...');
+        const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+        if (jsonMatch) {
+          console.log('[planner] Found JSON in markdown block');
+          plannerOutput = JSON.parse(jsonMatch[1]);
+        } else {
+          // Try to find JSON object in the response
+          const jsonObjectMatch = responseText.match(/\{[\s\S]*\}/);
+          if (jsonObjectMatch) {
+            console.log('[planner] Found JSON object in response');
+            plannerOutput = JSON.parse(jsonObjectMatch[0]);
+          } else {
+            throw directParseError;
+          }
+        }
+      }
       
-      // Fallback: create a simple plan structure
+      console.log('[planner] Successfully parsed JSON response');
+      return { success: true, output: plannerOutput };
+      
+    } catch (parseError) {
+      console.error('[planner] All JSON parse attempts failed:', parseError);
+      console.log('[planner] Full raw response for debugging:', responseText);
+      
+      // Fallback: create a simple plan structure  
       return { 
         success: true, 
         output: {
-          taskAnalysis: "Generate requested component",
+          taskAnalysis: "Generate requested component (fallback used - JSON parse failed)",
           implementationSteps: ["Create component", "Add styling", "Export component"],
           buildInstructions: "Create a clean, working React component",
           constraints: ["Use TypeScript", "Use modern React patterns"],
           codeExamples: "",
-          riskFactors: ["None identified"]
+          riskFactors: ["JSON parse failed - check logs for full response"]
         }
       };
     }
