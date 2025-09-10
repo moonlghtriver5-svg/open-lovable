@@ -21,8 +21,7 @@ export async function POST(request: NextRequest) {
       messages: [
         { role: 'user', content: 'Say "Hello World" - this is a test.' }
       ],
-      temperature: 0,
-      maxTokens: 50
+      temperature: 0
     });
 
     console.log('[test-openrouter] Request sent, processing response...');
