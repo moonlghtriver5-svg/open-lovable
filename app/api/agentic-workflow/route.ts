@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error('[agentic-workflow] Error creating planner context:', error);
       // Fallback to supervisor context from context-analyzer
-      plannerContext = createSupervisorContext(prompt, currentFiles);
+      plannerContext = createSupervisorContext(prompt);
       console.log('[agentic-workflow] Using supervisor context fallback');
     }
 
