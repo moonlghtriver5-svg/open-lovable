@@ -151,7 +151,7 @@ return (
   <div>
     <input value={symbols} onChange={(e) => setSymbols(e.target.value)} />
     <button onClick={fetchData}>Get Data</button>
-    {data.map(stock => <div key={stock.symbol}>{stock.symbol}: ${stock.price}</div>)}
+    {data.map(stock => <div key={stock.symbol}>{stock.symbol}: {stock.price}</div>)}
   </div>
 );`;
   }
