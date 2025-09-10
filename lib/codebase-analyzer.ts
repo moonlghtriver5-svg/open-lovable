@@ -2,11 +2,10 @@
 // Implements industry best practices from Cursor, GitHub Copilot, and Windsurf
 
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
-import { embed } from 'ai';
-
-const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
+// Note: embed from 'ai' and OpenRouter not used yet - future enhancement
+// const openrouter = createOpenRouter({
+//   apiKey: process.env.OPENROUTER_API_KEY,
+// });
 
 interface CodeChunk {
   id: string;
@@ -282,7 +281,7 @@ export class CodebaseAnalyzer {
     return Math.min(score / queryWords.length, 1);
   }
 
-  private async createEmbedding(text: string): Promise<number[] | null> {
+  private async createEmbedding(_text: string): Promise<number[] | null> {
     try {
       // OpenRouter doesn't have reliable embedding support yet
       // Use keyword-based semantic scoring instead

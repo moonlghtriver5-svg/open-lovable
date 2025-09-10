@@ -191,7 +191,7 @@ async function runPlannerAgentStreaming(
     if (contextualInfo && contextualInfo.relevantFiles.length > 0) {
       plannerPrompt += `\n\n🔍 EXISTING CODEBASE CONTEXT:
 Target File: ${contextualInfo.targetFile || 'Not identified'}
-Relevant Files: ${contextualInfo.relevantFiles.map(f => f.filePath).join(', ')}
+Relevant Files: ${contextualInfo.relevantFiles.map((f: any) => f.filePath).join(', ')}
 Confidence: ${Math.round(contextualInfo.confidenceScore * 100)}%
 
 INSTRUCTIONS:
