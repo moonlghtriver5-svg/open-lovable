@@ -272,8 +272,10 @@ INSTRUCTIONS:
   "riskFactors": ["risk 1", "risk 2"]
 }`;
 
+    // Use Claude Opus 4.1 for strategic planning (like regular planning mode)
+    console.log('[agentic-workflow] Using Claude Opus 4.1 for strategic planning...');
     const result = await streamText({
-      model: openrouter('anthropic/claude-3-5-sonnet-20250106'),
+      model: openrouter('anthropic/claude-opus-4.1'),
       messages: [
         { role: 'system', content: 'You are a strategic planner. Always respond with valid JSON.' },
         { role: 'user', content: plannerPrompt }
@@ -574,8 +576,9 @@ CONSTRAINTS:
 
 Generate ONLY code files. No explanations.`;
 
+    // Use Claude 4 Sonnet for code generation (like regular chat)
     const result = await streamText({
-      model: openrouter('anthropic/claude-3-5-sonnet-20250106'),
+      model: openrouter('anthropic/claude-sonnet-4'),
       messages: [
         { role: 'system', content: 'You are a code generation specialist. Generate clean, working code only.' },
         { role: 'user', content: builderPrompt }
@@ -623,8 +626,9 @@ CONSTRAINTS:
 
 Generate ONLY code files. No explanations.`;
 
+    // Use Claude 4 Sonnet for code generation (like regular chat)
     const result = await streamText({
-      model: openrouter('anthropic/claude-3-5-sonnet-20250106'),
+      model: openrouter('anthropic/claude-sonnet-4'),
       messages: [
         { role: 'system', content: 'You are a code generation specialist. Generate clean, working code only.' },
         { role: 'user', content: builderPrompt }
