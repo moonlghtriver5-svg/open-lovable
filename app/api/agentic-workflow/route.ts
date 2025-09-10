@@ -281,18 +281,35 @@ INSTRUCTIONS:
   "riskFactors": ["risk 1", "risk 2"]
 }`;
 
-    // Use Claude Opus 4.1 for strategic planning (like regular planning mode)
-    console.log('[planner] Using Claude Opus 4.1 for strategic planning...');
+    // Try Claude Opus 4.1, fallback to Sonnet if unavailable
+    console.log('[planner] Attempting Claude Opus 4.1 for strategic planning...');
     console.log('[planner] Prompt length:', plannerPrompt.length);
     
-    const result = await streamText({
-      model: openrouter('anthropic/claude-opus-4.1'),
-      messages: [
-        { role: 'system', content: 'You are a strategic planner. Always respond with valid JSON.' },
-        { role: 'user', content: plannerPrompt }
-      ],
-      temperature: 0.2
-    });
+    let result;
+    let modelUsed = 'anthropic/claude-opus-4.1';
+    
+    try {
+      result = await streamText({
+        model: openrouter('anthropic/claude-opus-4.1'),
+        messages: [
+          { role: 'system', content: 'You are a strategic planner. Always respond with valid JSON.' },
+          { role: 'user', content: plannerPrompt }
+        ],
+        temperature: 0.2
+      });
+      console.log('[planner] Claude Opus 4.1 succeeded');
+    } catch (opusError) {
+      console.log('[planner] Claude Opus 4.1 failed, falling back to Sonnet 4:', opusError);
+      modelUsed = 'anthropic/claude-sonnet-4';
+      result = await streamText({
+        model: openrouter('anthropic/claude-sonnet-4'),
+        messages: [
+          { role: 'system', content: 'You are a strategic planner. Always respond with valid JSON.' },
+          { role: 'user', content: plannerPrompt }
+        ],
+        temperature: 0.2
+      });
+    }
 
     console.log('[planner] StreamText started, beginning to process response...');
     let responseText = '';
@@ -313,7 +330,7 @@ INSTRUCTIONS:
       }
     }
     
-    console.log('[planner] Streaming complete. Total chunks:', chunkCount, 'Total response length:', responseText.length);
+    console.log('[planner] Streaming complete. Model used:', modelUsed, 'Total chunks:', chunkCount, 'Total response length:', responseText.length);
 
     // Parse planner output with fallback
     try {
