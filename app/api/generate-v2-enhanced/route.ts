@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
           } else {
             // Fallback to simplified generation
             console.log('[generate-v2-enhanced] Using simplified generation...');
-            await this.simpleGeneration(prompt, codebaseContext, controller, encoder);
+            await simpleGeneration(prompt, codebaseContext, controller, encoder);
           }
 
           controller.close();
@@ -148,13 +148,15 @@ export async function POST(request: NextRequest) {
     }, { status: 500, headers: corsHeaders });
   }
 
-  // Simplified generation for fallback
-  private async simpleGeneration(
+}
+
+// Simplified generation for fallback
+async function simpleGeneration(
     prompt: string,
     codebaseContext: any,
     controller: any,
     encoder: TextEncoder
-  ) {
+) {
     v2StreamingManager.updateStatus(controller, 'Simple Generation', 
       'Generating with basic approach...');
 
@@ -173,7 +175,6 @@ export async function POST(request: NextRequest) {
       filesModified: 1
     });
   }
-}
 
 // Health check endpoint
 export async function GET() {

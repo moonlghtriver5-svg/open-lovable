@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
           v2StreamingManager.updateStatus(controller, 'Strategic Planning', 
             'Creating comprehensive implementation plan...');
 
-          const strategicPlan = await this.createEnhancedPlan(
+          const strategicPlan = await createEnhancedPlan(
             prompt, 
             intentAnalysis, 
             codebaseContext, 
@@ -143,13 +143,15 @@ export async function POST(request: NextRequest) {
     }, { status: 500, headers: corsHeaders });
   }
 
-  // Create enhanced strategic plan with v2's methodology
-  private async createEnhancedPlan(
+}
+
+// Create enhanced strategic plan with v2's methodology
+async function createEnhancedPlan(
     userPrompt: string,
     intentAnalysis: any,
     codebaseContext: any,
     controller: any
-  ) {
+) {
     const conversationContext = conversationStateManager.getConversationContext();
     const userPreferences = conversationStateManager.getPreferredPatterns();
     const projectSummary = conversationStateManager.getProjectSummary();
@@ -239,10 +241,10 @@ Focus on precision, maintainability, and alignment with existing patterns. Use e
       return {
         approach: intentAnalysis.surgicalEdit ? 'surgical_edit' : 'new_creation',
         reasoning: planContent,
-        phases: this.extractPhases(planContent),
-        riskAssessment: this.extractRisks(planContent),
-        successCriteria: this.extractSuccessCriteria(planContent),
-        estimatedComplexity: this.estimateComplexity(intentAnalysis, codebaseContext)
+        phases: extractPhases(planContent),
+        riskAssessment: extractRisks(planContent),
+        successCriteria: extractSuccessCriteria(planContent),
+        estimatedComplexity: estimateComplexity(intentAnalysis, codebaseContext)
       };
 
     } catch (error) {
@@ -251,8 +253,8 @@ Focus on precision, maintainability, and alignment with existing patterns. Use e
     }
   }
 
-  // Helper methods to extract structured data from plan
-  private extractPhases(planContent: string): string[] {
+// Helper methods to extract structured data from plan
+function extractPhases(planContent: string): string[] {
     const phaseSection = planContent.match(/## 📋 IMPLEMENTATION PHASES([\s\S]*?)(?=##|$)/i);
     if (!phaseSection) return ['Planning', 'Implementation', 'Testing'];
 
@@ -265,7 +267,7 @@ Focus on precision, maintainability, and alignment with existing patterns. Use e
     return phases.length > 0 ? phases : ['Planning', 'Implementation', 'Testing'];
   }
 
-  private extractRisks(planContent: string): string[] {
+function extractRisks(planContent: string): string[] {
     const riskSection = planContent.match(/## ⚠️ RISK ASSESSMENT([\s\S]*?)(?=##|$)/i);
     if (!riskSection) return ['Standard implementation risks'];
 
@@ -278,7 +280,7 @@ Focus on precision, maintainability, and alignment with existing patterns. Use e
     return risks.length > 0 ? risks : ['Standard implementation risks'];
   }
 
-  private extractSuccessCriteria(planContent: string): string[] {
+function extractSuccessCriteria(planContent: string): string[] {
     const criteriaSection = planContent.match(/## ✅ SUCCESS CRITERIA([\s\S]*?)(?=##|$)/i);
     if (!criteriaSection) return ['Functionality works as requested'];
 
@@ -291,7 +293,7 @@ Focus on precision, maintainability, and alignment with existing patterns. Use e
     return criteria.length > 0 ? criteria : ['Functionality works as requested'];
   }
 
-  private estimateComplexity(intentAnalysis: any, codebaseContext: any): 'low' | 'medium' | 'high' {
+function estimateComplexity(intentAnalysis: any, codebaseContext: any): 'low' | 'medium' | 'high' {
     let complexityScore = 0;
 
     // Factor in edit type
@@ -313,7 +315,6 @@ Focus on precision, maintainability, and alignment with existing patterns. Use e
     if (complexityScore <= 6) return 'medium';
     return 'high';
   }
-}
 
 // Health check
 export async function GET() {
