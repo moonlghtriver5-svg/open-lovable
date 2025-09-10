@@ -1853,20 +1853,24 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                   addChatMessage('🧠 **Strategic Planning Started**', 'system');
                 } else if (data.type === 'planner-thinking') {
                   // Accumulate planner thinking in real-time (like plan content)
+                  console.log('🤖 [frontend] Got planner-thinking:', data.content);
                   setCurrentPlanMessage(prev => {
                     const newContent = prev + data.content;
+                    console.log('🤖 [frontend] Updated plan content length:', newContent.length);
                     
                     // Update or create the planner thinking message
                     setChatMessages(messages => {
                       const lastMessage = messages[messages.length - 1];
                       if (lastMessage && lastMessage.type === 'planner-thinking') {
                         // Update existing planner thinking message
+                        console.log('🤖 [frontend] Updating existing planner message');
                         return [...messages.slice(0, -1), {
                           ...lastMessage,
                           content: `🧠 **Strategic Planning:**\n${newContent}`
                         }];
                       } else {
                         // Create new planner thinking message
+                        console.log('🤖 [frontend] Creating new planner message');
                         return [...messages, {
                           content: `🧠 **Strategic Planning:**\n${newContent}`,
                           type: 'planner-thinking', 
