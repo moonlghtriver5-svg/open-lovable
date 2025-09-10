@@ -286,7 +286,7 @@ Return filename as comment + complete code.`;
   }
 
   // Helper methods
-  private streamUpdate(controller: any, encoder: TextEncoder, type: string, content: string) {
+  private streamUpdate(controller: any, encoder: TextEncoder | undefined, type: string, content: string) {
     if (controller && encoder) {
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type, content })}\n\n`));
     }

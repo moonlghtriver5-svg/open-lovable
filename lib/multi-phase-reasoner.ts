@@ -188,9 +188,9 @@ export class MultiPhaseReasoner {
       `Searching for: ${intentAnalysis.searchTerms.join(', ')}`);
 
     const searchResults = {
-      relevantFiles: [],
-      matchedTerms: [],
-      codeSnippets: [],
+      relevantFiles: [] as string[],
+      matchedTerms: [] as string[],
+      codeSnippets: [] as string[],
       confidence: 0
     };
 

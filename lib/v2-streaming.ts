@@ -159,7 +159,7 @@ export class V2StreamingManager {
           const pkg = match.match(/from\s+['"`]([^'"`]+)['"`]/);
           return pkg ? pkg[1] : null;
         })
-        .filter(pkg => pkg && !pkg.startsWith('.') && !pkg.startsWith('/'))
+        .filter((pkg): pkg is string => pkg !== null && !pkg.startsWith('.') && !pkg.startsWith('/'))
         .filter(pkg => !this.progress.packagesDetected.includes(pkg));
       
       this.progress.packagesDetected.push(...newPackages);
