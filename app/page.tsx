@@ -36,7 +36,7 @@ interface SandboxData {
 
 interface ChatMessage {
   content: string;
-  type: 'user' | 'ai' | 'system' | 'file-update' | 'command' | 'error' | 'plan';
+  type: 'user' | 'ai' | 'system' | 'file-update' | 'command' | 'error' | 'plan' | 'planner-thinking';
   timestamp: Date;
   metadata?: {
     scrapedUrl?: string;
