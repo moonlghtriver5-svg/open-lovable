@@ -7,6 +7,7 @@ export interface CodeApplicationState {
   installedPackages?: string[];
   filesGenerated?: string[];
   message?: string;
+  progress?: number; // Progress percentage 0-100
 }
 
 interface CodeApplicationProgressProps {

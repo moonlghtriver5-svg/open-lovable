@@ -51,33 +51,33 @@ export async function POST(request: NextRequest) {
       totalTokens: 500 // Estimated
     };
 
-    console.log('[agentic-workflow] About to call planner agent...');
-    const plannerResult = await runPlannerAgent(prompt, plannerContext);
-    console.log('[agentic-workflow] Planner agent returned:', plannerResult.success ? 'SUCCESS' : 'FAILED');
-    
-    if (!plannerResult.success) {
-      return NextResponse.json({
-        error: 'Planner agent failed',
-        details: plannerResult.error
-      }, { status: 500, headers: corsHeaders });
-    }
-
-    // Phase 2: Execution with Error Handling
-    const executionResult = await executeWithRetry(
-      prompt,
-      plannerResult.output,
-      context,
-      maxRetries
-    );
-
-    // Stream the final result
+    // Stream the entire workflow with real-time updates
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // Send planner analysis
+          // Phase 1: Stream Planner Analysis
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-            type: 'planner-analysis',
+            type: 'planner-start',
+            content: 'Starting strategic planning...'
+          })}\n\n`));
+
+          console.log('[agentic-workflow] About to call planner agent...');
+          const plannerResult = await runPlannerAgentStreaming(prompt, plannerContext, controller, encoder);
+          console.log('[agentic-workflow] Planner agent returned:', plannerResult.success ? 'SUCCESS' : 'FAILED');
+          
+          if (!plannerResult.success) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'error',
+              message: 'Planner agent failed: ' + plannerResult.error
+            })}\n\n`));
+            controller.close();
+            return;
+          }
+
+          // Send planner completion
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: 'planner-complete',
             content: {
               task: plannerContext.constraints,
               plan: plannerResult.output.implementationSteps,
@@ -85,15 +85,23 @@ export async function POST(request: NextRequest) {
             }
           })}\n\n`));
 
-          // Stream the execution result
-          if (executionResult.type === 'success' && executionResult.stream) {
-            for await (const chunk of executionResult.stream) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                type: 'code-generation',
-                content: chunk
-              })}\n\n`));
-            }
+          // Phase 2: Stream Execution with Error Handling
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: 'execution-start',
+            content: 'Starting code generation...'
+          })}\n\n`));
 
+          const executionResult = await executeWithRetryStreaming(
+            prompt,
+            plannerResult.output,
+            context,
+            maxRetries,
+            controller,
+            encoder
+          );
+
+          // Stream the final result
+          if (executionResult.type === 'success') {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
               type: 'execution-complete',
               success: true,
@@ -138,7 +146,72 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Planner Agent - Strategic Planning (Simplified)
+// Planner Agent - Strategic Planning with Real-time Streaming
+async function runPlannerAgentStreaming(userRequest: string, context: any, controller: any, encoder: TextEncoder) {
+  try {
+    const plannerPrompt = `You are a strategic planner. Create a JSON plan for: "${userRequest}"
+
+Respond with JSON only:
+{
+  "taskAnalysis": "Brief analysis",
+  "implementationSteps": ["step 1", "step 2", "step 3"],
+  "buildInstructions": "Specific instructions",
+  "constraints": ["constraint 1", "constraint 2"],
+  "codeExamples": "Relevant patterns",
+  "riskFactors": ["risk 1", "risk 2"]
+}`;
+
+    const result = await streamText({
+      model: openrouter('anthropic/claude-3-5-sonnet-20241022'),
+      messages: [
+        { role: 'system', content: 'You are a strategic planner. Always respond with valid JSON.' },
+        { role: 'user', content: plannerPrompt }
+      ],
+      temperature: 0.2
+    });
+
+    let responseText = '';
+    for await (const textPart of result.textStream) {
+      responseText += textPart;
+      // Stream planner thinking in real-time
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+        type: 'planner-thinking',
+        content: textPart
+      })}\n\n`));
+    }
+
+    // Parse planner output with fallback
+    try {
+      const plannerOutput = JSON.parse(responseText);
+      return { success: true, output: plannerOutput };
+    } catch (parseError) {
+      console.error('[planner] JSON parse error:', parseError);
+      console.log('[planner] Raw response:', responseText.substring(0, 200));
+      
+      // Fallback: create a simple plan structure
+      return { 
+        success: true, 
+        output: {
+          taskAnalysis: "Generate requested component",
+          implementationSteps: ["Create component", "Add styling", "Export component"],
+          buildInstructions: "Create a clean, working React component",
+          constraints: ["Use TypeScript", "Use modern React patterns"],
+          codeExamples: "",
+          riskFactors: ["None identified"]
+        }
+      };
+    }
+
+  } catch (error) {
+    console.error('[planner] Error:', error);
+    return { 
+      success: false, 
+      error: (error as Error).message 
+    };
+  }
+}
+
+// Original non-streaming planner (keep for fallback)
 async function runPlannerAgent(userRequest: string, context: any) {
   try {
     const plannerPrompt = `You are a strategic planner. Create a JSON plan for: "${userRequest}"
@@ -198,7 +271,102 @@ Respond with JSON only:
   }
 }
 
-// Execute with retry logic and auto-fixing
+// Execute with retry logic and real-time streaming
+async function executeWithRetryStreaming(
+  userRequest: string,
+  plannerOutput: any,
+  context: any,
+  maxRetries: number,
+  controller: any,
+  encoder: TextEncoder
+) {
+  let lastError = null;
+  const allAppliedFixes: string[] = [];
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    console.log(`[agentic-workflow] Execution attempt ${attempt}/${maxRetries + 1}`);
+
+    // Stream attempt status
+    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+      type: 'execution-attempt',
+      content: `Attempt ${attempt}/${maxRetries + 1}...`
+    })}\n\n`));
+
+    try {
+      // Create simple context for builder
+      const builderContext = {
+        relevantFiles: context?.currentFiles || {},
+        patterns: [],
+        constraints: ['Generate complete code', 'Use TypeScript'],
+        examples: '',
+        totalTokens: 300
+      };
+
+      console.log('[agentic-workflow] Builder context tokens:', builderContext.totalTokens);
+
+      // Run builder agent with streaming
+      const builderResult = await runBuilderAgentStreaming(userRequest, builderContext, plannerOutput, controller, encoder);
+      
+      if (!builderResult.success) {
+        lastError = { error: builderResult.error, attempt };
+        continue;
+      }
+
+      // Error detection and auto-fixing
+      const errors = detectErrors(builderResult.code || '', builderContext);
+      console.log(`[agentic-workflow] Detected ${errors.length} errors`);
+
+      if (errors.length > 0) {
+        // Stream error detection status
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: 'error-detection',
+          content: `Found ${errors.length} issues, applying auto-fixes...`
+        })}\n\n`));
+
+        const autoFixResult = autoFixCode(builderResult.code || '', errors);
+        allAppliedFixes.push(...autoFixResult.appliedFixes);
+
+        if (autoFixResult.success && autoFixResult.remainingErrors.length === 0) {
+          // Auto-fix successful, validate and return
+          const validation = validateCode(autoFixResult.fixedCode!);
+          if (validation.isValid) {
+            return {
+              type: 'success' as const,
+              code: autoFixResult.fixedCode!,
+              attempts: attempt,
+              appliedFixes: allAppliedFixes
+            };
+          }
+        }
+
+        // Create error context for next retry
+        lastError = createErrorContext(builderResult.code || '', errors, autoFixResult);
+      } else {
+        // No errors detected, return successfully
+        return {
+          type: 'success' as const,
+          code: builderResult.code || '',
+          attempts: attempt,
+          appliedFixes: allAppliedFixes
+        };
+      }
+
+    } catch (error) {
+      console.error(`[agentic-workflow] Attempt ${attempt} failed:`, error);
+      lastError = { error: (error as Error).message, attempt };
+    }
+  }
+
+  // All retries failed
+  return {
+    type: 'failure' as const,
+    error: 'Max retries exceeded',
+    attempts: maxRetries + 1,
+    lastErrors: lastError
+  };
+}
+
+// Original non-streaming execute (keep for fallback)
 async function executeWithRetry(
   userRequest: string,
   plannerOutput: any,
@@ -279,7 +447,56 @@ async function executeWithRetry(
   };
 }
 
-// Builder Agent - Code Generation (Simplified)
+// Builder Agent - Code Generation with Real-time Streaming
+async function runBuilderAgentStreaming(userRequest: string, context: any, plannerOutput?: any, controller?: any, encoder?: TextEncoder) {
+  try {
+    const builderPrompt = `Generate complete, working code for: "${userRequest}"
+
+INSTRUCTIONS:
+${plannerOutput?.buildInstructions || 'Create high-quality React code'}
+
+CONSTRAINTS:
+- Use modern React patterns with hooks
+- Include proper TypeScript types
+- Generate complete, working code only
+- No placeholders or TODOs
+
+Generate ONLY code files. No explanations.`;
+
+    const result = await streamText({
+      model: openrouter('anthropic/claude-3-5-sonnet-20241022'),
+      messages: [
+        { role: 'system', content: 'You are a code generation specialist. Generate clean, working code only.' },
+        { role: 'user', content: builderPrompt }
+      ],
+      temperature: 0.1
+    });
+
+    let generatedCode = '';
+    for await (const textPart of result.textStream) {
+      generatedCode += textPart;
+      
+      // Stream code generation in real-time
+      if (controller && encoder) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: 'code-generation',
+          content: textPart
+        })}\n\n`));
+      }
+    }
+
+    return { success: true, code: generatedCode };
+
+  } catch (error) {
+    console.error('[builder] Error:', error);
+    return { 
+      success: false, 
+      error: (error as Error).message 
+    };
+  }
+}
+
+// Original non-streaming builder (keep for fallback)
 async function runBuilderAgent(userRequest: string, context: any, plannerOutput?: any) {
   try {
     const builderPrompt = `Generate complete, working code for: "${userRequest}"
