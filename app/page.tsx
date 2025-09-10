@@ -1863,13 +1863,13 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                         // Update existing planner thinking message
                         return [...messages.slice(0, -1), {
                           ...lastMessage,
-                          content: newContent
+                          content: `🧠 **Strategic Planning:**\n${newContent}`
                         }];
                       } else {
                         // Create new planner thinking message
                         return [...messages, {
-                          content: `🧠 **Planning Process:**\n\`\`\`json\n${newContent}\n\`\`\``,
-                          type: 'planner-thinking',
+                          content: `🧠 **Strategic Planning:**\n${newContent}`,
+                          type: 'planner-thinking', 
                           timestamp: new Date()
                         }];
                       }

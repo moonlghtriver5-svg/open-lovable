@@ -331,6 +331,12 @@ INSTRUCTIONS:
     }
     
     console.log('[planner] Streaming complete. Model used:', modelUsed, 'Total chunks:', chunkCount, 'Total response length:', responseText.length);
+    
+    // Check if stream was interrupted (incomplete JSON)
+    if (responseText.length > 0 && !responseText.includes('}')) {
+      console.warn('[planner] ⚠️ Stream appears to have been interrupted - no closing brace found');
+      console.warn('[planner] Last 100 chars:', responseText.slice(-100));
+    }
 
     // Parse planner output with better JSON extraction
     try {
