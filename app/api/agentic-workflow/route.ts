@@ -8,6 +8,7 @@ import { createPlannerContext, createBuilderContext } from '@/lib/smart-context-
 import { createSupervisorContext } from '@/lib/context-analyzer';
 import { generatePlannerPrompt, generateBuilderPrompt, generateValidatorPrompt, generateErrorRecoveryPrompt } from '@/lib/prompt-templates';
 import { detectErrors, autoFixCode, createErrorContext, validateCode } from '@/lib/error-detector';
+import { codebaseAnalyzer } from '@/lib/codebase-analyzer';
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -56,14 +57,43 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // Phase 1: Stream Planner Analysis
+          // Phase 0: Codebase Analysis (Context-Aware)
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-            type: 'planner-start',
-            content: 'Starting strategic planning...'
+            type: 'context-analysis-start',
+            content: 'Analyzing existing codebase for context...'
           })}\n\n`));
 
-          console.log('[agentic-workflow] About to call planner agent...');
-          const plannerResult = await runPlannerAgentStreaming(prompt, plannerContext, controller, encoder);
+          // Analyze existing codebase if files are provided
+          let contextualInfo = null;
+          if (context?.currentFiles && Object.keys(context.currentFiles).length > 0) {
+            console.log('[agentic-workflow] Analyzing codebase for context...');
+            await codebaseAnalyzer.analyzeCodebase(context.currentFiles);
+            contextualInfo = await codebaseAnalyzer.generateContextualEdit(prompt);
+            
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'context-analysis-complete',
+              content: {
+                filesAnalyzed: Object.keys(context.currentFiles).length,
+                relevantFiles: contextualInfo.relevantFiles.map(f => f.filePath),
+                targetFile: contextualInfo.targetFile,
+                confidence: contextualInfo.confidenceScore
+              }
+            })}\n\n`));
+          } else {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'context-analysis-complete', 
+              content: { message: 'No existing codebase provided - generating new code' }
+            })}\n\n`));
+          }
+
+          // Phase 1: Stream Planner Analysis (Now Context-Aware)
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: 'planner-start',
+            content: 'Starting strategic planning with codebase context...'
+          })}\n\n`));
+
+          console.log('[agentic-workflow] About to call context-aware planner agent...');
+          const plannerResult = await runPlannerAgentStreaming(prompt, plannerContext, controller, encoder, contextualInfo);
           console.log('[agentic-workflow] Planner agent returned:', plannerResult.success ? 'SUCCESS' : 'FAILED');
           
           if (!plannerResult.success) {
@@ -146,16 +176,49 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Planner Agent - Strategic Planning with Real-time Streaming
-async function runPlannerAgentStreaming(userRequest: string, context: any, controller: any, encoder: TextEncoder) {
+// Planner Agent - Strategic Planning with Real-time Streaming and Context Awareness
+async function runPlannerAgentStreaming(
+  userRequest: string, 
+  context: any, 
+  controller: any, 
+  encoder: TextEncoder, 
+  contextualInfo: any = null
+) {
   try {
-    const plannerPrompt = `You are a strategic planner. Create a JSON plan for: "${userRequest}"
+    let plannerPrompt = `You are a strategic planner. Create a JSON plan for: "${userRequest}"`;
+    
+    // Add context-aware information if available
+    if (contextualInfo && contextualInfo.relevantFiles.length > 0) {
+      plannerPrompt += `\n\n🔍 EXISTING CODEBASE CONTEXT:
+Target File: ${contextualInfo.targetFile || 'Not identified'}
+Relevant Files: ${contextualInfo.relevantFiles.map(f => f.filePath).join(', ')}
+Confidence: ${Math.round(contextualInfo.confidenceScore * 100)}%
 
-Respond with JSON only:
+INSTRUCTIONS:
+- This is a MODIFICATION/FIX request, not new code generation
+- Focus on editing the existing file: ${contextualInfo.targetFile}
+- Understand the current implementation before suggesting changes
+- Preserve existing functionality while making requested improvements
+- Reference specific functions/components that need changes
+
+EXISTING CODE STRUCTURE:`;
+      
+      // Add relevant code chunks
+      for (const file of contextualInfo.relevantFiles.slice(0, 2)) { // Top 2 most relevant
+        plannerPrompt += `\n\n📁 ${file.filePath}:`;
+        for (const chunk of file.chunks.slice(0, 3)) { // Top 3 chunks per file
+          plannerPrompt += `\n  - ${chunk.type}: ${chunk.name} (lines ${chunk.startLine}-${chunk.endLine})`;
+        }
+      }
+    }
+
+    plannerPrompt += `\n\nRespond with JSON only:
 {
-  "taskAnalysis": "Brief analysis",
+  "taskAnalysis": "Brief analysis of what needs to be ${contextualInfo ? 'modified' : 'created'}",
   "implementationSteps": ["step 1", "step 2", "step 3"],
-  "buildInstructions": "Specific instructions",
+  "buildInstructions": "Specific instructions for the builder",
+  "targetFile": "${contextualInfo?.targetFile || 'new file'}",
+  "editType": "${contextualInfo ? 'modify' : 'create'}",
   "constraints": ["constraint 1", "constraint 2"],
   "codeExamples": "Relevant patterns",
   "riskFactors": ["risk 1", "risk 2"]
