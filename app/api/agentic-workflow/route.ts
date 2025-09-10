@@ -9,6 +9,7 @@ import { createSupervisorContext } from '@/lib/context-analyzer';
 import { generatePlannerPrompt, generateBuilderPrompt, generateValidatorPrompt, generateErrorRecoveryPrompt } from '@/lib/prompt-templates';
 import { detectErrors, autoFixCode, createErrorContext, validateCode } from '@/lib/error-detector';
 import { codebaseAnalyzer } from '@/lib/codebase-analyzer';
+import { fileSummarizer } from '@/lib/file-summarizer';
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -65,18 +66,42 @@ export async function POST(request: NextRequest) {
 
           // Analyze existing codebase if files are provided
           let contextualInfo = null;
+          let fileSummaries = null;
+          
           if (context?.currentFiles && Object.keys(context.currentFiles).length > 0) {
             console.log('[agentic-workflow] Analyzing codebase for context...');
+            
+            // Phase 1: LLM-based file summarization
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'context-analysis-start',
+              content: 'Generating LLM summaries for existing files...'
+            })}\n\n`));
+            
+            fileSummaries = await fileSummarizer.updateContextIndex(context.currentFiles);
+            
+            // Phase 2: Smart file relevance analysis
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'context-analysis-start',
+              content: 'Finding relevant files for your request...'
+            })}\n\n`));
+            
             await codebaseAnalyzer.analyzeCodebase(context.currentFiles);
             contextualInfo = await codebaseAnalyzer.generateContextualEdit(prompt);
+            
+            // Phase 3: Enhanced context with LLM summaries
+            const relevantSummaries = fileSummarizer.findRelevantFiles(prompt, 3);
+            const contextSummary = fileSummarizer.getContextSummary();
             
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
               type: 'context-analysis-complete',
               content: {
                 filesAnalyzed: Object.keys(context.currentFiles).length,
-                relevantFiles: contextualInfo.relevantFiles.map(f => f.filePath),
+                filesWithSummaries: Object.keys(fileSummaries.files).length,
+                relevantFiles: contextualInfo.relevantFiles.map((f: any) => f.filePath),
                 targetFile: contextualInfo.targetFile,
-                confidence: contextualInfo.confidenceScore
+                confidence: contextualInfo.confidenceScore,
+                contextSummary: contextSummary.substring(0, 200) + '...',
+                relevantSummaries: relevantSummaries.map(s => ({ path: s.path, summary: s.summary }))
               }
             })}\n\n`));
           } else {
@@ -93,7 +118,7 @@ export async function POST(request: NextRequest) {
           })}\n\n`));
 
           console.log('[agentic-workflow] About to call context-aware planner agent...');
-          const plannerResult = await runPlannerAgentStreaming(prompt, plannerContext, controller, encoder, contextualInfo);
+          const plannerResult = await runPlannerAgentStreaming(prompt, plannerContext, controller, encoder, contextualInfo, fileSummaries);
           console.log('[agentic-workflow] Planner agent returned:', plannerResult.success ? 'SUCCESS' : 'FAILED');
           
           if (!plannerResult.success) {
@@ -182,7 +207,8 @@ async function runPlannerAgentStreaming(
   context: any, 
   controller: any, 
   encoder: TextEncoder, 
-  contextualInfo: any = null
+  contextualInfo: any = null,
+  fileSummaries: any = null
 ) {
   try {
     let plannerPrompt = `You are a strategic planner. Create a JSON plan for: "${userRequest}"`;
@@ -199,9 +225,31 @@ INSTRUCTIONS:
 - Focus on editing the existing file: ${contextualInfo.targetFile}
 - Understand the current implementation before suggesting changes
 - Preserve existing functionality while making requested improvements
-- Reference specific functions/components that need changes
+- Reference specific functions/components that need changes`;
 
-EXISTING CODE STRUCTURE:`;
+      // Add LLM-generated file summaries for better understanding
+      if (fileSummaries && Object.keys(fileSummaries.files).length > 0) {
+        plannerPrompt += `\n\n📚 LLM-GENERATED FILE SUMMARIES:`;
+        
+        const relevantSummaries = fileSummarizer.findRelevantFiles(userRequest, 3);
+        for (const summary of relevantSummaries) {
+          plannerPrompt += `\n\n📄 ${summary.path}:
+  Purpose: ${summary.purpose}
+  Summary: ${summary.summary}`;
+          
+          if (summary.components.length > 0) {
+            plannerPrompt += `\n  Components: ${summary.components.join(', ')}`;
+          }
+          
+          if (summary.exports.length > 0) {
+            plannerPrompt += `\n  Exports: ${summary.exports.join(', ')}`;
+          }
+        }
+        
+        plannerPrompt += `\n\n💡 USE THIS CONTEXT: The LLM summaries above give you deep understanding of what each file does. Use this to make informed decisions about which files to edit and how to preserve existing functionality.`;
+      }
+
+      plannerPrompt += `\n\nEXISTING CODE STRUCTURE:`;
       
       // Add relevant code chunks
       for (const file of contextualInfo.relevantFiles.slice(0, 2)) { // Top 2 most relevant

@@ -917,9 +917,29 @@ Tip: I automatically detect and install npm packages from your code imports (lik
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setSandboxFiles(data.files || {});
+          const newFiles = data.files || {};
+          setSandboxFiles(newFiles);
           setFileStructure(data.structure || '');
-          console.log('[fetchSandboxFiles] Updated file list:', Object.keys(data.files || {}).length, 'files');
+          console.log('[fetchSandboxFiles] Updated file list:', Object.keys(newFiles).length, 'files');
+          
+          // 🚀 Automatic Context Updates: Update LLM file summaries when files change
+          if (Object.keys(newFiles).length > 0) {
+            try {
+              console.log('[fetchSandboxFiles] Updating LLM context summaries...');
+              const response = await fetch('/api/update-file-context', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: newFiles })
+              });
+              
+              if (response.ok) {
+                const contextData = await response.json();
+                console.log('[fetchSandboxFiles] Context updated:', contextData.summary);
+              }
+            } catch (contextError) {
+              console.warn('[fetchSandboxFiles] Context update failed (non-critical):', contextError);
+            }
+          }
         }
       }
     } catch (error) {
@@ -1809,8 +1829,99 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                     // Keep the files that were already parsed during streaming
                     files: prev.files.length > 0 ? prev.files : parsedFiles
                   }));
+                } else if (data.type === 'context-analysis-start') {
+                  setGenerationProgress(prev => ({ ...prev, status: data.content }));
+                } else if (data.type === 'context-analysis-complete') {
+                  const contextInfo = data.content;
+                  let statusMessage = `Analyzed ${contextInfo.filesAnalyzed || 0} files`;
+                  if (contextInfo.targetFile) {
+                    statusMessage += `, targeting: ${contextInfo.targetFile}`;
+                  }
+                  if (contextInfo.confidence) {
+                    statusMessage += ` (${Math.round(contextInfo.confidence * 100)}% confidence)`;
+                  }
+                  setGenerationProgress(prev => ({ ...prev, status: statusMessage }));
+                  
+                  // Add context analysis message to chat
+                  if (contextInfo.relevantFiles && contextInfo.relevantFiles.length > 0) {
+                    addChatMessage(`🔍 **Context Analysis Complete**\n\n**Target File:** ${contextInfo.targetFile || 'Not identified'}\n**Relevant Files:** ${contextInfo.relevantFiles.join(', ')}\n**Confidence:** ${Math.round(contextInfo.confidence * 100)}%`, 'system');
+                  } else {
+                    addChatMessage('📝 No existing codebase provided - generating new code', 'system');
+                  }
+                } else if (data.type === 'planner-start') {
+                  setGenerationProgress(prev => ({ ...prev, status: data.content }));
+                  addChatMessage('🧠 **Strategic Planning Started**', 'system');
+                } else if (data.type === 'planner-thinking') {
+                  // Accumulate planner thinking in real-time (like plan content)
+                  setCurrentPlanMessage(prev => {
+                    const newContent = prev + data.content;
+                    
+                    // Update or create the planner thinking message
+                    setChatMessages(messages => {
+                      const lastMessage = messages[messages.length - 1];
+                      if (lastMessage && lastMessage.type === 'planner-thinking') {
+                        // Update existing planner thinking message
+                        return [...messages.slice(0, -1), {
+                          ...lastMessage,
+                          content: newContent
+                        }];
+                      } else {
+                        // Create new planner thinking message
+                        return [...messages, {
+                          content: `🧠 **Planning Process:**\n\`\`\`json\n${newContent}\n\`\`\``,
+                          type: 'planner-thinking',
+                          timestamp: new Date()
+                        }];
+                      }
+                    });
+                    
+                    return newContent;
+                  });
+                } else if (data.type === 'planner-complete') {
+                  const planContent = data.content;
+                  setGenerationProgress(prev => ({ ...prev, status: 'Planning complete - starting execution...' }));
+                  addChatMessage(`✅ **Planning Complete**\n\n**Target:** ${planContent.strategy}\n**Steps:** ${planContent.plan ? planContent.plan.join(', ') : 'Generated'}`, 'system');
+                } else if (data.type === 'execution-start') {
+                  setGenerationProgress(prev => ({ ...prev, status: data.content, isGenerating: true }));
+                } else if (data.type === 'execution-attempt') {
+                  setGenerationProgress(prev => ({ ...prev, status: data.content }));
+                } else if (data.type === 'code-generation') {
+                  // Handle the new agentic workflow code generation (same as 'stream')
+                  setGenerationProgress(prev => {
+                    const newStreamedCode = prev.streamedCode + data.content;
+                    
+                    const updatedState = {
+                      ...prev,
+                      streamedCode: newStreamedCode,
+                      isStreaming: true,
+                      isThinking: false,
+                      status: 'Generating code...'
+                    };
+                    
+                    return updatedState;
+                  });
+                } else if (data.type === 'error-detection') {
+                  setGenerationProgress(prev => ({ ...prev, status: data.content }));
+                } else if (data.type === 'execution-complete') {
+                  setGenerationProgress(prev => ({ 
+                    ...prev, 
+                    status: `Execution complete! (${data.attempts} attempt${data.attempts !== 1 ? 's' : ''})`,
+                    isGenerating: false,
+                    isStreaming: false
+                  }));
+                  if (data.appliedFixes && data.appliedFixes.length > 0) {
+                    addChatMessage(`🔧 **Auto-fixes Applied:** ${data.appliedFixes.join(', ')}`, 'system');
+                  }
+                } else if (data.type === 'execution-failed') {
+                  setGenerationProgress(prev => ({ 
+                    ...prev, 
+                    status: `Execution failed after ${data.attempts} attempts`,
+                    isGenerating: false,
+                    isStreaming: false
+                  }));
+                  addChatMessage(`❌ **Execution Failed:** ${data.error}`, 'system');
                 } else if (data.type === 'error') {
-                  throw new Error(data.error);
+                  throw new Error(data.error || data.message);
                 }
               } catch (e) {
                 console.error('Failed to parse SSE data:', e);
