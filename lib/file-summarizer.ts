@@ -55,7 +55,7 @@ Respond with JSON only:
 
     try {
       const result = await streamText({
-        model: openrouter('anthropic/claude-3-5-sonnet-20241022'),
+        model: openrouter('anthropic/claude-3-5-sonnet-20250106'),
         messages: [
           { role: 'system', content: 'You are a code analysis assistant. Always respond with valid JSON.' },
           { role: 'user', content: summaryPrompt }

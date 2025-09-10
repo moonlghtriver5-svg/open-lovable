@@ -273,7 +273,7 @@ INSTRUCTIONS:
 }`;
 
     const result = await streamText({
-      model: openrouter('anthropic/claude-3-5-sonnet-20241022'),
+      model: openrouter('anthropic/claude-3-5-sonnet-20250106'),
       messages: [
         { role: 'system', content: 'You are a strategic planner. Always respond with valid JSON.' },
         { role: 'user', content: plannerPrompt }
@@ -338,7 +338,7 @@ Respond with JSON only:
 }`;
 
     const result = await streamText({
-      model: openrouter('anthropic/claude-3-5-sonnet-20241022'),
+      model: openrouter('anthropic/claude-3-5-sonnet-20250106'),
       messages: [
         { role: 'system', content: 'You are a strategic planner. Always respond with valid JSON.' },
         { role: 'user', content: plannerPrompt }
@@ -575,7 +575,7 @@ CONSTRAINTS:
 Generate ONLY code files. No explanations.`;
 
     const result = await streamText({
-      model: openrouter('anthropic/claude-3-5-sonnet-20241022'),
+      model: openrouter('anthropic/claude-3-5-sonnet-20250106'),
       messages: [
         { role: 'system', content: 'You are a code generation specialist. Generate clean, working code only.' },
         { role: 'user', content: builderPrompt }
@@ -624,7 +624,7 @@ CONSTRAINTS:
 Generate ONLY code files. No explanations.`;
 
     const result = await streamText({
-      model: openrouter('anthropic/claude-3-5-sonnet-20241022'),
+      model: openrouter('anthropic/claude-3-5-sonnet-20250106'),
       messages: [
         { role: 'system', content: 'You are a code generation specialist. Generate clean, working code only.' },
         { role: 'user', content: builderPrompt }
