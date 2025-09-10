@@ -185,8 +185,14 @@ ${JSON.stringify(userPreferences, null, 2)}
 
 EXISTING CODEBASE:
 Files: ${Object.keys(codebaseContext.files).length}
-Components: ${codebaseContext.componentList.join(', ')}
+Components: ${codebaseContext.componentList.join(', ')}  
 Recent Changes: ${codebaseContext.recentChanges.join(', ')}
+
+🚨 CRITICAL FILE AWARENESS:
+- DO NOT suggest creating files that already exist
+- ONLY modify existing files when necessary
+- Prefer surgical edits over new file creation
+- Check existing components before suggesting new ones
 
 CREATE A COMPREHENSIVE PLAN:
 
