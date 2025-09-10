@@ -1633,68 +1633,10 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                     thinkingDuration: data.duration
                   }));
                 } else if (data.type === 'conversation') {
-                  // Accumulate conversational text - similar to plan messages
-                  setCurrentConversationMessage(prev => {
-                    const newContent = prev + (data.text || '');
-                    
-                    // Clean up the text
-                    let cleanText = newContent
-                      .replace(/<package>[^<]*<\/package>/g, '')
-                      .replace(/<packages>[^<]*<\/packages>/g, '');
-                    
-                    // STRICT filtering - only allow pure conversational text
-                    const isCode = cleanText.includes('<file') || 
-                        cleanText.includes('```') ||
-                        cleanText.includes('import ') ||
-                        cleanText.includes('export ') ||
-                        cleanText.includes('function ') ||
-                        cleanText.includes('const ') ||
-                        cleanText.includes('useState') ||
-                        cleanText.includes('useEffect') ||
-                        cleanText.includes('className') ||
-                        cleanText.includes('onClick') ||
-                        cleanText.includes('src/') ||
-                        cleanText.includes('path="') ||
-                        cleanText.includes('<') ||
-                        cleanText.includes('>') ||
-                        cleanText.includes('{') ||
-                        cleanText.includes('}') ||
-                        cleanText.includes('jsx') ||
-                        cleanText.includes('React') ||
-                        cleanText.includes('component') ||
-                        cleanText.includes('return') ||
-                        cleanText.includes('=') ||
-                        cleanText.includes(';') ||
-                        cleanText.includes('(') ||
-                        cleanText.includes(')') ||
-                        cleanText.length > 150; // Long text is probably code
-                    
-                    if (!isCode && cleanText.trim().length > 0) {
-                      
-                      // Update or create the conversation message
-                      setChatMessages(messages => {
-                        const lastMessage = messages[messages.length - 1];
-                        if (lastMessage && lastMessage.type === 'ai' && 
-                            lastMessage.content !== 'Code generated!' && 
-                            !lastMessage.content.includes('Successfully')) {
-                          // Update existing AI message
-                          return [...messages.slice(0, -1), {
-                            ...lastMessage,
-                            content: cleanText.trim()
-                          }];
-                        } else {
-                          // Create new AI message
-                          return [...messages, {
-                            content: cleanText.trim(),
-                            type: 'ai',
-                            timestamp: new Date()
-                          }];
-                        }
-                      });
-                    }
-                    
-                    return newContent;
-                  });
+                  // DISABLE conversation messages from builder - it should be silent
+                  // Any text from builder is likely code that slipped through
+                  console.log('[Frontend] Filtering builder conversation:', data.text?.substring(0, 50) + '...');
+                  // Don't accumulate or display any conversation text from builder
                 } else if (data.type === 'stream' && data.raw) {
                   setGenerationProgress(prev => {
                     const newStreamedCode = prev.streamedCode + data.text;
@@ -2289,68 +2231,10 @@ Focus on the key sections and content, making it clean and modern while preservi
                     thinkingDuration: data.duration
                   }));
                 } else if (data.type === 'conversation') {
-                  // Accumulate conversational text - similar to plan messages
-                  setCurrentConversationMessage(prev => {
-                    const newContent = prev + (data.text || '');
-                    
-                    // Clean up the text
-                    let cleanText = newContent
-                      .replace(/<package>[^<]*<\/package>/g, '')
-                      .replace(/<packages>[^<]*<\/packages>/g, '');
-                    
-                    // STRICT filtering - only allow pure conversational text
-                    const isCode = cleanText.includes('<file') || 
-                        cleanText.includes('```') ||
-                        cleanText.includes('import ') ||
-                        cleanText.includes('export ') ||
-                        cleanText.includes('function ') ||
-                        cleanText.includes('const ') ||
-                        cleanText.includes('useState') ||
-                        cleanText.includes('useEffect') ||
-                        cleanText.includes('className') ||
-                        cleanText.includes('onClick') ||
-                        cleanText.includes('src/') ||
-                        cleanText.includes('path="') ||
-                        cleanText.includes('<') ||
-                        cleanText.includes('>') ||
-                        cleanText.includes('{') ||
-                        cleanText.includes('}') ||
-                        cleanText.includes('jsx') ||
-                        cleanText.includes('React') ||
-                        cleanText.includes('component') ||
-                        cleanText.includes('return') ||
-                        cleanText.includes('=') ||
-                        cleanText.includes(';') ||
-                        cleanText.includes('(') ||
-                        cleanText.includes(')') ||
-                        cleanText.length > 150; // Long text is probably code
-                    
-                    if (!isCode && cleanText.trim().length > 0) {
-                      
-                      // Update or create the conversation message
-                      setChatMessages(messages => {
-                        const lastMessage = messages[messages.length - 1];
-                        if (lastMessage && lastMessage.type === 'ai' && 
-                            lastMessage.content !== 'Code generated!' && 
-                            !lastMessage.content.includes('Successfully')) {
-                          // Update existing AI message
-                          return [...messages.slice(0, -1), {
-                            ...lastMessage,
-                            content: cleanText.trim()
-                          }];
-                        } else {
-                          // Create new AI message
-                          return [...messages, {
-                            content: cleanText.trim(),
-                            type: 'ai',
-                            timestamp: new Date()
-                          }];
-                        }
-                      });
-                    }
-                    
-                    return newContent;
-                  });
+                  // DISABLE conversation messages from builder - it should be silent
+                  // Any text from builder is likely code that slipped through
+                  console.log('[Frontend] Filtering builder conversation:', data.text?.substring(0, 50) + '...');
+                  // Don't accumulate or display any conversation text from builder
                 } else if (data.type === 'stream' && data.raw) {
                   setGenerationProgress(prev => ({ 
                     ...prev, 

@@ -117,7 +117,11 @@ async function handlePlanningMode(request: NextRequest, prompt: string, context:
         const planResponse = await fetch(`${baseUrl}/api/plan-ai-code`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, context })
+          body: JSON.stringify({ 
+            prompt, 
+            context,
+            conversationState: (global as any).conversationState 
+          })
         });
         
         console.log('[handlePlanningMode] Planning API response status:', planResponse.status);
@@ -125,6 +129,7 @@ async function handlePlanningMode(request: NextRequest, prompt: string, context:
         if (!planResponse.ok) {
           throw new Error('Planning failed');
         }
+        
         
         // Stream the plan
         let fullPlan = '';
@@ -216,6 +221,7 @@ async function handlePlanningMode(request: NextRequest, prompt: string, context:
         // Store generated files in global conversation state for next planning request
         if (Object.keys(generatedFiles).length > 0) {
           console.log('[handlePlanningMode] Storing', Object.keys(generatedFiles).length, 'generated files for future planning');
+          console.log('[handlePlanningMode] Generated files:', Object.keys(generatedFiles));
           
           if (!(global as any).conversationState) {
             (global as any).conversationState = { context: { currentFiles: {}, messages: [] } };
@@ -229,6 +235,8 @@ async function handlePlanningMode(request: NextRequest, prompt: string, context:
           
           // Update current files with generated code
           Object.assign((global as any).conversationState.context.currentFiles, generatedFiles);
+          
+          console.log('[handlePlanningMode] Updated global.conversationState.context.currentFiles:', Object.keys((global as any).conversationState.context.currentFiles));
         }
         
         controller.close();
@@ -1599,7 +1607,7 @@ CRITICAL: When files are provided in the context:
           
           // Add conversation context (scraped websites, etc)
           if (context.conversationContext) {
-            if (context.conversationContext.scrapedWebsites?.length > 0) {
+            if (context.conversationContext.scrapedWebsites && context.conversationContext.scrapedWebsites.length > 0) {
               contextParts.push('\nScraped Websites in Context:');
               context.conversationContext.scrapedWebsites.forEach((site: any) => {
                 contextParts.push(`\nURL: ${site.url}`);
@@ -1618,6 +1626,72 @@ CRITICAL: When files are provided in the context:
               contextParts.push(`\nCurrent Project: ${context.conversationContext.currentProject}`);
             }
           }
+
+          // Add market data capabilities
+          contextParts.push(`
+
+📊 MARKET DATA INTEGRATION:
+You have access to real-time market data through free APIs (no API keys required):
+
+STOCK DATA (MarketData.app + Yahoo Finance):
+- Single stock: https://fastprototype.vercel.app/api/market-data?type=stock&symbol=AAPL
+  Response: {"symbol":"AAPL","price":236.52,"change":-1.36,"changePercent":-0.57,"volume":4470370,"timestamp":"2025-09-09T13:55:09.788Z"}
+
+- Multiple stocks: https://fastprototype.vercel.app/api/market-data?type=multiple&symbols=AAPL,GOOGL,MSFT  
+  Response: [{"symbol":"AAPL","price":236.41,"change":-1.47,"changePercent":-0.62,"volume":4470370,"timestamp":"2025-09-09T13:55:14.121Z"},{"symbol":"GOOGL","price":235.39,"change":1.34,"changePercent":0.57,"volume":5969250,"high52Week":238.13,"low52Week":140.53,"timestamp":"2025-09-09T13:55:13.807Z"}]
+
+CRYPTO DATA (CoinGecko):
+- Get crypto: https://fastprototype.vercel.app/api/market-data?type=crypto&symbol=bitcoin
+  Response: {"symbol":"BITCOIN","name":"bitcoin","price":112869,"change24h":0.65,"changePercent24h":0.65,"volume24h":40109784533.90386,"marketCap":2247961777104.28,"timestamp":"2025-09-09T13:55:18.064Z"}
+
+MARKET SUMMARY:
+- Popular stocks + cryptos: https://fastprototype.vercel.app/api/market-data?type=summary
+  Response: {"stocks":[{"symbol":"AAPL","price":236.56,"change":-1.32,"changePercent":-0.55,"volume":4470370}...],"cryptos":[{"symbol":"BITCOIN","price":112869,"change24h":0.65}...]}
+
+🚨 IMPORTANT: Always use the full production URL (https://fastprototype.vercel.app/api/market-data) for API calls, never relative URLs like /api/market-data when running in sandbox environments.
+
+⚠️ JAVASCRIPT TEMPLATE LITERALS: When building URLs with variables, use backticks (\`) not quotes:
+- ✅ CORRECT: \`https://fastprototype.vercel.app/api/market-data?symbols=\${symbolsParam}\`
+- ❌ WRONG: 'https://fastprototype.vercel.app/api/market-data?symbols=\${symbolsParam}'
+
+🚨 CRITICAL: ALWAYS USE REAL DATA FOR FINANCIAL APPS
+- NEVER use mock/dummy data for stocks or crypto
+- ALWAYS fetch from https://fastprototype.vercel.app/api/market-data endpoints
+- User requests for "stock screener", "portfolio tracker", "market data" = USE REAL API
+- NO exceptions - real data only for financial applications
+
+🎯 USER INTERFACE PATTERNS FOR FINANCIAL APPS:
+
+STOCK SCREENER:
+- Input field for entering stock symbols (AAPL,GOOGL,MSFT)
+- Submit/Search button to trigger API call
+- useState to manage symbol input: const [symbols, setSymbols] = useState('AAPL,GOOGL,MSFT')
+- Build URL from user input: \`https://fastprototype.vercel.app/api/market-data?type=multiple&symbols=\${symbols}\`
+
+PORTFOLIO TRACKER:
+- Add stock button/form
+- Remove stock functionality  
+- Save to localStorage for persistence
+- Real-time price updates for user's selected stocks
+
+MARKET DASHBOARD:
+- Configurable widgets (top gainers, losers, trending)
+- Refresh button for latest data
+- Filter/sort controls
+
+⚠️ NEVER hardcode undefined variables like \${symbolsParam} - ALWAYS get values from:
+- User input (forms, text fields)
+- Component state (useState)
+- Props passed down from parent components
+- Local storage for saved preferences
+
+INTEGRATION EXAMPLES:
+- "Show me AAPL data" → Fetch and display current Apple stock info
+- "Create a crypto tracker" → Build app using live crypto prices with add/remove functionality
+- "Build a portfolio app" → Use market data for user's selected stocks with input forms
+- "Build a stock screener" → Input field + submit button + fetch from user-entered symbols
+
+Always build proper user interfaces with input handling, not just data fetching logic!`);
           
           if (contextParts.length > 0) {
             fullPrompt = `CONTEXT:\n${contextParts.join('\n')}\n\nUSER REQUEST:\n${prompt}`;
@@ -1802,6 +1876,7 @@ It's better to have 3 complete files than 10 incomplete files.`
         
         // Stream the response and parse in real-time
         let generatedCode = '';
+        const generatedFiles: Record<string, string> = {};
         let currentFile = '';
         let currentFilePath = '';
         let componentCount = 0;
@@ -1829,14 +1904,8 @@ It's better to have 3 complete files than 10 incomplete files.`
           const hasCloseTag = /<\/(file|package|packages|explanation|command|structure|template)>/.test(text);
           
           if (hasOpenTag) {
-            // Send any buffered conversational text before the tag
-            if (conversationalBuffer.trim() && !isInTag) {
-              await sendProgress({ 
-                type: 'conversation', 
-                text: conversationalBuffer.trim()
-              });
-              conversationalBuffer = '';
-            }
+            // Skip conversational text - builder should be code-only
+            conversationalBuffer = '';
             isInTag = true;
           }
           
@@ -1894,6 +1963,12 @@ It's better to have 3 complete files than 10 incomplete files.`
           if (isInFile && currentFile.includes('</file>')) {
             isInFile = false;
             
+            // Extract file content and store it
+            const fileContent = currentFile.replace(/<\/file>.*$/, '');
+            if (currentFilePath && fileContent.trim()) {
+              generatedFiles[currentFilePath] = fileContent.trim();
+            }
+            
             // Send component progress update
             if (currentFilePath.includes('components/')) {
               componentCount++;
@@ -1919,13 +1994,20 @@ It's better to have 3 complete files than 10 incomplete files.`
         
         console.log('\n\n[generate-ai-code-stream] Streaming complete.');
         
-        // Send any remaining conversational text
-        if (conversationalBuffer.trim()) {
-          await sendProgress({ 
-            type: 'conversation', 
-            text: conversationalBuffer.trim()
-          });
+        // Store assistant's response in conversation history
+        if (global.conversationState && generatedCode.trim()) {
+          const assistantMessage: ConversationMessage = {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            content: `Generated ${Object.keys(generatedFiles).length} files: ${Object.keys(generatedFiles).join(', ')}`,
+            timestamp: Date.now()
+          };
+          global.conversationState.context.messages.push(assistantMessage);
+          console.log('[generate-ai-code-stream] Stored assistant response in conversation history');
         }
+        
+        // Clear any remaining conversational buffer - builder should be code-only
+        conversationalBuffer = '';
         
         // Also parse <packages> tag for multiple packages - ONLY for edits
         if (isEdit) {
@@ -2250,7 +2332,7 @@ Provide the complete file content without any truncation. Include all necessary 
       } catch (error) {
         console.error('[generate-ai-code-stream] Stream processing error:', error);
         
-        // Check if it's a tool validation error
+        // Check if it's a tool validation error (recoverable)
         if ((error as any).message?.includes('tool call validation failed')) {
           console.error('[generate-ai-code-stream] Tool call validation error - this may be due to the AI model sending incorrect parameters');
           await sendProgress({ 

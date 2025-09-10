@@ -15,10 +15,11 @@ declare global {
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, context } = await request.json();
+    const { prompt, context, conversationState } = await request.json();
     
     console.log('[plan-ai-code] Planning request received');
     console.log('[plan-ai-code] Prompt:', prompt);
+    console.log('[plan-ai-code] Received conversation state with', conversationState?.context?.messages?.length || 0, 'messages');
     
     if (!prompt) {
       return NextResponse.json({
@@ -31,6 +32,14 @@ export async function POST(request: NextRequest) {
     
     // Get current files from context or global conversation state
     const currentFiles = context?.currentFiles || (global as any).conversationState?.context?.currentFiles || {};
+    
+    console.log('[plan-ai-code] Context debugging:');
+    console.log('- context?.currentFiles keys:', context?.currentFiles ? Object.keys(context.currentFiles) : 'none');
+    console.log('- global.conversationState exists:', !!(global as any).conversationState);
+    console.log('- global.conversationState.context exists:', !!(global as any).conversationState?.context);
+    console.log('- global.conversationState.context.currentFiles keys:', (global as any).conversationState?.context?.currentFiles ? Object.keys((global as any).conversationState.context.currentFiles) : 'none');
+    console.log('- global.conversationState.context.messages count:', (global as any).conversationState?.context?.messages?.length || 0);
+    console.log('- final currentFiles keys:', Object.keys(currentFiles));
     
     // Include existing app context if available
     if (Object.keys(currentFiles).length > 0) {
@@ -58,21 +67,38 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Include conversation history
-    if (global.conversationState && global.conversationState.context.messages.length > 1) {
-      const recentMessages = global.conversationState.context.messages.slice(-5);
-      planningContext += '\n\nRECENT CONVERSATION:\n';
-      recentMessages.forEach(msg => {
+    // Include conversation history - critical for context awareness
+    const activeConversationState = conversationState || (global as any).conversationState;
+    if (activeConversationState && activeConversationState.context.messages.length > 1) {
+      const recentMessages = activeConversationState.context.messages.slice(-10); // Include more messages
+      console.log('[plan-ai-code] Including chat history with', recentMessages.length, 'messages');
+      planningContext += '\n\nCHAT HISTORY (Recent conversation):\n';
+      recentMessages.forEach((msg: any, index: number) => {
         if (msg.role === 'user') {
-          planningContext += `User: "${msg.content}"\n`;
+          planningContext += `👤 User: "${msg.content}"\n`;
+          console.log(`[plan-ai-code] Message ${index}: User - "${msg.content.substring(0, 100)}..."`);
+        } else if (msg.role === 'assistant') {
+          // Include assistant responses but truncate if too long
+          const content = msg.content.length > 200 ? msg.content.substring(0, 200) + '...' : msg.content;
+          planningContext += `🤖 Assistant: "${content}"\n`;
+          console.log(`[plan-ai-code] Message ${index}: Assistant - "${content}"`);
         }
       });
+    } else {
+      console.log('[plan-ai-code] No chat history available - passed conversationState:', !!conversationState, 'global.conversationState exists:', !!(global as any).conversationState, 'messages count:', activeConversationState?.context?.messages?.length || 0);
     }
     
     const planningPrompt = `You are a concise software architect. Create a BRIEF, actionable implementation plan.
 
+🧠 CRITICAL: Review the CHAT HISTORY below to understand:
+- What the user has been working on and building
+- Previous requests and implemented features  
+- The evolution of the application
+- User preferences and feedback
+- Context from recent conversations
+
 ${Object.keys(currentFiles).length > 0 ? `
-🔍 CONTEXT AWARENESS:
+🔍 EXISTING CODE CONTEXT:
 You have been provided with the existing application code. ANALYZE it carefully:
 - Understand the current component structure, styling, and functionality
 - Identify existing patterns, colors, libraries, and architecture
@@ -99,28 +125,72 @@ You have been provided with the existing application code. ANALYZE it carefully:
 
 Keep it CONCISE and ACTIONABLE. Maximum 200 words total.
 
+📊 AVAILABLE MARKET DATA API:
+You have access to real-time market data through https://fastprototype.vercel.app/api/market-data (no API keys required):
+- Stock data: https://fastprototype.vercel.app/api/market-data?type=stock&symbol=AAPL 
+- Multiple stocks: https://fastprototype.vercel.app/api/market-data?type=multiple&symbols=AAPL,GOOGL,MSFT
+- Crypto data: https://fastprototype.vercel.app/api/market-data?type=crypto&symbol=bitcoin
+- Market summary: https://fastprototype.vercel.app/api/market-data?type=summary
+- Returns: {symbol, price, change, changePercent, volume, marketCap, timestamp}
+
+For financial apps like stock screeners, portfolio trackers, or market dashboards:
+- USE the full production URL: https://fastprototype.vercel.app/api/market-data
+- DON'T use relative URLs like /api/market-data (won't work in sandbox)
+- DON'T suggest external APIs (Alpha Vantage, Yahoo Finance, etc.)
+- DON'T add axios or other HTTP clients (use built-in fetch)
+- USE backticks (\`) for template literals when building URLs with variables
+
+🎯 PLAN PROPER USER INTERFACES:
+- Stock screener = Input field + Submit button + Results table
+- Portfolio tracker = Add/Remove buttons + Stock list + Price updates  
+- Market dashboard = Widget selection + Refresh controls + Data display
+- ALWAYS include user input handling (forms, buttons, state management)
+- NEVER plan hardcoded variables - plan user interaction flows
+
 USER REQUEST: "${prompt}"
 
 ${planningContext}
 
 PLANNING RESPONSE:`;
     
-    console.log('[plan-ai-code] Using Claude Opus 4.1 for planning...');
+    // Try Claude Opus 4.1, fallback to Sonnet 3.5 if unavailable
+    let modelToUse = 'anthropic/claude-opus-4.1';
+    let result;
     
-    const result = await streamText({
-      model: openrouter('anthropic/claude-opus-4.1'),
-      messages: [
-        { 
-          role: 'system', 
-          content: 'You are a world-class software architect creating detailed implementation plans.'
-        },
-        { 
-          role: 'user', 
-          content: planningPrompt
-        }
-      ],
-      temperature: 0.3, // Lower temperature for consistent planning
-    });
+    try {
+      console.log('[plan-ai-code] Trying Claude Opus 4.1 for planning...');
+      result = await streamText({
+        model: openrouter(modelToUse),
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a world-class software architect creating detailed implementation plans.'
+          },
+          { 
+            role: 'user', 
+            content: planningPrompt
+          }
+        ],
+        temperature: 0.3, // Lower temperature for consistent planning
+      });
+    } catch (error) {
+      console.log('[plan-ai-code] Claude Opus 4.1 failed, trying Sonnet 3.5 fallback...', error);
+      modelToUse = 'anthropic/claude-3-5-sonnet-20241022';
+      result = await streamText({
+        model: openrouter(modelToUse),
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a world-class software architect creating detailed implementation plans.'
+          },
+          { 
+            role: 'user', 
+            content: planningPrompt
+          }
+        ],
+        temperature: 0.3,
+      });
+    }
     
     // Stream the planning response
     let planContent = '';
@@ -129,6 +199,7 @@ PLANNING RESPONSE:`;
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          console.log('[plan-ai-code] Starting to stream planning response...');
           for await (const textPart of result.textStream) {
             const text = textPart || '';
             planContent += text;
@@ -140,6 +211,7 @@ PLANNING RESPONSE:`;
             })}\n\n`);
             controller.enqueue(chunk);
           }
+          console.log('[plan-ai-code] Finished streaming, total content length:', planContent.length);
           
           // Send completion signal
           const completeChunk = encoder.encode(`data: ${JSON.stringify({ 
