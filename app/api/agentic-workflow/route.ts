@@ -118,8 +118,16 @@ export async function POST(request: NextRequest) {
           })}\n\n`));
 
           console.log('[agentic-workflow] About to call context-aware planner agent...');
+          console.log('[agentic-workflow] Planner context:', plannerContext);
+          
           const plannerResult = await runPlannerAgentStreaming(prompt, plannerContext, controller, encoder, contextualInfo, fileSummaries);
           console.log('[agentic-workflow] Planner agent returned:', plannerResult.success ? 'SUCCESS' : 'FAILED');
+          
+          if (plannerResult.success) {
+            console.log('[agentic-workflow] Planner output keys:', Object.keys(plannerResult.output || {}));
+          } else {
+            console.log('[agentic-workflow] Planner error:', plannerResult.error);
+          }
           
           if (!plannerResult.success) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
@@ -211,6 +219,7 @@ async function runPlannerAgentStreaming(
   fileSummaries: any = null
 ) {
   try {
+    console.log('[planner] Starting planner agent with contextual info:', !!contextualInfo);
     let plannerPrompt = `You are a strategic planner. Create a JSON plan for: "${userRequest}"`;
     
     // Add context-aware information if available
@@ -273,7 +282,9 @@ INSTRUCTIONS:
 }`;
 
     // Use Claude Opus 4.1 for strategic planning (like regular planning mode)
-    console.log('[agentic-workflow] Using Claude Opus 4.1 for strategic planning...');
+    console.log('[planner] Using Claude Opus 4.1 for strategic planning...');
+    console.log('[planner] Prompt length:', plannerPrompt.length);
+    
     const result = await streamText({
       model: openrouter('anthropic/claude-opus-4.1'),
       messages: [
@@ -283,15 +294,26 @@ INSTRUCTIONS:
       temperature: 0.2
     });
 
+    console.log('[planner] StreamText started, beginning to process response...');
     let responseText = '';
+    let chunkCount = 0;
+    
     for await (const textPart of result.textStream) {
       responseText += textPart;
+      chunkCount++;
+      
       // Stream planner thinking in real-time
       controller.enqueue(encoder.encode(`data: ${JSON.stringify({
         type: 'planner-thinking',
         content: textPart
       })}\n\n`));
+      
+      if (chunkCount % 10 === 0) {
+        console.log('[planner] Streamed', chunkCount, 'chunks, current length:', responseText.length);
+      }
     }
+    
+    console.log('[planner] Streaming complete. Total chunks:', chunkCount, 'Total response length:', responseText.length);
 
     // Parse planner output with fallback
     try {
