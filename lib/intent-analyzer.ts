@@ -3,6 +3,7 @@
 
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { streamText } from 'ai';
+import { editExamplesV2 } from './edit-examples-v2';
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -80,14 +81,17 @@ RULES:
       // Parse with v2's robust JSON extraction
       const analysis = this.parseIntentResponse(responseText);
       
+      // Enhance analysis with edit examples patterns
+      const enhancedAnalysis = this.enhanceWithEditExamples(analysis, userPrompt);
+      
       console.log('[intent-analyzer] Analysis complete:', {
-        editType: analysis.editType,
-        confidence: analysis.confidence,
-        surgicalEdit: analysis.surgicalEdit,
-        targetFiles: analysis.targetFiles.length
+        editType: enhancedAnalysis.editType,
+        confidence: enhancedAnalysis.confidence,
+        surgicalEdit: enhancedAnalysis.surgicalEdit,
+        targetFiles: enhancedAnalysis.targetFiles.length
       });
 
-      return analysis;
+      return enhancedAnalysis;
 
     } catch (error) {
       console.error('[intent-analyzer] Analysis failed:', error);
@@ -157,6 +161,51 @@ RULES:
       .filter(word => !['this', 'that', 'with', 'from', 'they', 'have', 'will', 'been', 'were'].includes(word));
     
     return words.slice(0, 5);
+  }
+
+  // Enhance analysis with v2's deterministic edit examples
+  private enhanceWithEditExamples(analysis: IntentAnalysis, userPrompt: string): IntentAnalysis {
+    // Find best matching example
+    const bestExample = editExamplesV2.getBestExample(
+      userPrompt,
+      analysis.editType,
+      analysis.searchTerms
+    );
+
+    if (!bestExample) {
+      return analysis;
+    }
+
+    // Calculate enhanced confidence
+    const exampleConfidence = editExamplesV2.calculateMatchConfidence(
+      [bestExample],
+      analysis.editType,
+      analysis.searchTerms
+    );
+
+    // Merge the confidence scores
+    const enhancedConfidence = (analysis.confidence + exampleConfidence) / 2;
+
+    // Get enhanced search terms and patterns
+    const enhancedSearchTerms = editExamplesV2.getEnhancedSearchTerms(
+      userPrompt,
+      [bestExample]
+    );
+
+    const enhancedPatterns = editExamplesV2.getEnhancedRegexPatterns(
+      [bestExample],
+      analysis.searchTerms
+    );
+
+    console.log('[intent-analyzer] Enhanced with edit example:', bestExample.pattern);
+
+    return {
+      ...analysis,
+      confidence: enhancedConfidence,
+      searchTerms: [...new Set([...analysis.searchTerms, ...enhancedSearchTerms])],
+      regexPatterns: [...new Set([...(analysis.regexPatterns || []), ...enhancedPatterns])],
+      expectedChanges: [...analysis.expectedChanges, bestExample.description]
+    };
   }
 }
 

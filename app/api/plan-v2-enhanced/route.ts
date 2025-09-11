@@ -194,6 +194,32 @@ Recent Changes: ${codebaseContext.recentChanges.join(', ')}
 - Prefer surgical edits over new file creation
 - Check existing components before suggesting new ones
 
+📊 AVAILABLE DATA APIS:
+
+🏪 MARKET DATA API (stocks/crypto):
+Real-time market data through https://fastprototype.vercel.app/api/market-data (no API keys required):
+- Stock data: ?type=stock&symbol=AAPL 
+- Multiple stocks: ?type=multiple&symbols=AAPL,GOOGL,MSFT
+- Crypto data: ?type=crypto&symbol=bitcoin
+- Market summary: ?type=summary
+- Returns: {symbol, price, change, changePercent, volume, marketCap, timestamp}
+
+🏦 FRED ECONOMIC DATA API (Federal Reserve):
+Federal Reserve Economic Data through FRED API (key included):
+- GDP: https://api.stlouisfed.org/fred/series/observations?series_id=GDPC1&api_key=dc3251a5a8b7b1d788cf2ee5e3f42bf6&file_type=json
+- Unemployment: https://api.stlouisfed.org/fred/series/observations?series_id=UNRATE&api_key=dc3251a5a8b7b1d788cf2ee5e3f42bf6&file_type=json
+- Inflation (CPI): https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&api_key=dc3251a5a8b7b1d788cf2ee5e3f42bf6&file_type=json
+- Fed Funds Rate: https://api.stlouisfed.org/fred/series/observations?series_id=FEDFUNDS&api_key=dc3251a5a8b7b1d788cf2ee5e3f42bf6&file_type=json
+- Housing Starts: https://api.stlouisfed.org/fred/series/observations?series_id=HOUST&api_key=dc3251a5a8b7b1d788cf2ee5e3f42bf6&file_type=json
+- Returns: {"observations": [{"date": "2024-01-01", "value": "27000.5"}]}
+
+API RULES:
+- For stock/crypto apps: USE market data API
+- For economic/GDP apps: USE FRED API with working key
+- DON'T suggest external APIs (Alpha Vantage, World Bank, etc.)
+- USE full URLs, never relative paths
+- USE built-in fetch, not axios
+
 CREATE A COMPREHENSIVE PLAN:
 
 ## 🎯 STRATEGIC APPROACH

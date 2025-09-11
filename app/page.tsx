@@ -196,6 +196,31 @@ function AISandboxPageContent() {
       isMounted = false;
     };
   }, []); // Run only on mount
+
+  // Sandbox heartbeat to prevent timeout
+  useEffect(() => {
+    if (!sandboxData?.url) return;
+
+    const heartbeatInterval = setInterval(async () => {
+      try {
+        console.log('[heartbeat] Refreshing sandbox timeout...');
+        const response = await fetch('/api/sandbox-heartbeat', {
+          method: 'POST',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`[heartbeat] Sandbox timeout refreshed for ${data.timeoutMinutes} minutes`);
+        } else {
+          console.warn('[heartbeat] Failed to refresh sandbox timeout:', response.statusText);
+        }
+      } catch (error) {
+        console.error('[heartbeat] Heartbeat failed:', error);
+      }
+    }, 4 * 60 * 1000); // Every 4 minutes (before the 5-minute E2B default timeout)
+
+    return () => clearInterval(heartbeatInterval);
+  }, [sandboxData?.url]);
   
   useEffect(() => {
     // Handle Escape key for home screen
@@ -1537,6 +1562,47 @@ Tip: I automatically detect and install npm packages from your code imports (lik
     // Determine if this is an edit
     const isEdit = conversationContext.appliedCode.length > 0;
     
+    // 🚀 AUTO-DETECT PLANNING MODE for "add to sandbox" requests
+    let shouldUsePlanningMode = usePlanningMode; // Start with manual toggle
+    
+    // Phrases that should trigger planning mode automatically
+    const planningTriggers = [
+      'add to sandbox', 'add to the sandbox', 'put in sandbox', 'put in the sandbox',
+      'add this to sandbox', 'add this to the sandbox', 'add file to sandbox',
+      'create in sandbox', 'generate in sandbox', 'make in sandbox',
+      'add component to sandbox', 'add page to sandbox'
+    ];
+    
+    // Phrases that should NOT trigger planning (just ensure sandbox is active)
+    const executeTriggers = [
+      'execute', 'run', 'start', 'launch', 'open', 'show', 'view', 'preview',
+      'check', 'test', 'display', 'demo'
+    ];
+    
+    const hasAddToSandboxPhrase = planningTriggers.some(trigger => 
+      lowerMessage.includes(trigger)
+    );
+    
+    const hasExecutePhrase = executeTriggers.some(trigger => 
+      lowerMessage.includes(trigger)
+    );
+    
+    if (hasAddToSandboxPhrase && !hasExecutePhrase) {
+      shouldUsePlanningMode = true;
+      console.log('[sendChatMessage] Auto-enabled planning mode for "add to sandbox" request');
+    } else if (hasExecutePhrase && !hasAddToSandboxPhrase) {
+      // For execute commands, ensure sandbox exists but don't generate new files
+      if (!sandboxData) {
+        addChatMessage('No active sandbox found. Creating one first...', 'system');
+        await createSandbox();
+        addChatMessage('Sandbox is ready! Your files should be visible in the preview.', 'system');
+        return;
+      } else {
+        addChatMessage('Sandbox is active. Check the preview tab to see your files.', 'system');
+        return;
+      }
+    }
+    
     try {
       // Generation tab is already active from scraping phase
       setCurrentPlanMessage(''); // Reset plan message for new generation
@@ -1586,7 +1652,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
           model: aiModel,
           context: fullContext,
           isEdit: conversationContext.appliedCode.length > 0,
-          usePlanningMode: usePlanningMode
+          usePlanningMode: shouldUsePlanningMode
         })
       });
       
@@ -2268,8 +2334,10 @@ Focus on the key sections and content, making it clean and modern while preservi
       // Switch to generation tab when starting
       setActiveTab('generation');
       
-      // Choose API endpoint based on mode - use v2 enhanced APIs
-      const apiEndpoint = usePlanningMode ? '/api/plan-v2-enhanced' : '/api/generate-v2-enhanced';
+      // Choose API endpoint based on mode - use v2 enhanced APIs  
+      // For website cloning, we generally want to use planning mode to break down the site structure
+      const shouldUsePlanningModeForClone = true; // Website cloning benefits from planning
+      const apiEndpoint = shouldUsePlanningModeForClone ? '/api/plan-v2-enhanced' : '/api/generate-v2-enhanced';
       
       // Both v2 enhanced APIs use the same request structure  
       const requestBody = {
@@ -2515,11 +2583,19 @@ Focus on the key sections and content, making it clean and modern while preservi
           setActiveTab('preview');
         }
       } else {
-        setScreenshotError(data.error || 'Failed to capture screenshot');
+        // Hide Firecrawl errors and fallback to sandbox creation
+        console.warn('Screenshot capture failed, falling back to sandbox creation:', data.error);
+        // Automatically create sandbox as fallback
+        setTimeout(() => {
+          createSandbox(true);
+        }, 1000);
       }
     } catch (error) {
-      console.error('Failed to capture screenshot:', error);
-      setScreenshotError('Network error while capturing screenshot');
+      console.error('Failed to capture screenshot, falling back to sandbox creation:', error);
+      // Automatically create sandbox as fallback
+      setTimeout(() => {
+        createSandbox(true);
+      }, 1000);
     } finally {
       setIsCapturingScreenshot(false);
     }

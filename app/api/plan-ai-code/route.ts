@@ -125,7 +125,9 @@ You have been provided with the existing application code. ANALYZE it carefully:
 
 Keep it CONCISE and ACTIONABLE. Maximum 200 words total.
 
-📊 AVAILABLE MARKET DATA API:
+📊 AVAILABLE DATA APIS:
+
+🏪 MARKET DATA API (stocks/crypto):
 You have access to real-time market data through https://fastprototype.vercel.app/api/market-data (no API keys required):
 - Stock data: https://fastprototype.vercel.app/api/market-data?type=stock&symbol=AAPL 
 - Multiple stocks: https://fastprototype.vercel.app/api/market-data?type=multiple&symbols=AAPL,GOOGL,MSFT
@@ -133,19 +135,32 @@ You have access to real-time market data through https://fastprototype.vercel.ap
 - Market summary: https://fastprototype.vercel.app/api/market-data?type=summary
 - Returns: {symbol, price, change, changePercent, volume, marketCap, timestamp}
 
-For financial apps like stock screeners, portfolio trackers, or market dashboards:
-- USE the full production URL: https://fastprototype.vercel.app/api/market-data
-- DON'T use relative URLs like /api/market-data (won't work in sandbox)
-- DON'T suggest external APIs (Alpha Vantage, Yahoo Finance, etc.)
+🏦 FRED ECONOMIC DATA API (Federal Reserve):
+You have access to Federal Reserve Economic Data through FRED API (key included):
+- GDP: https://api.stlouisfed.org/fred/series/observations?series_id=GDPC1&api_key=dc3251a5a8b7b1d788cf2ee5e3f42bf6&file_type=json
+- Unemployment: https://api.stlouisfed.org/fred/series/observations?series_id=UNRATE&api_key=dc3251a5a8b7b1d788cf2ee5e3f42bf6&file_type=json
+- Inflation (CPI): https://api.stlouisfed.org/fred/series/observations?series_id=CPIAUCSL&api_key=dc3251a5a8b7b1d788cf2ee5e3f42bf6&file_type=json
+- Fed Funds Rate: https://api.stlouisfed.org/fred/series/observations?series_id=FEDFUNDS&api_key=dc3251a5a8b7b1d788cf2ee5e3f42bf6&file_type=json
+- Housing Starts: https://api.stlouisfed.org/fred/series/observations?series_id=HOUST&api_key=dc3251a5a8b7b1d788cf2ee5e3f42bf6&file_type=json
+- Returns: {"observations": [{"date": "2024-01-01", "value": "27000.5"}]}
+
+For financial/economic apps:
+- Stock apps = USE https://fastprototype.vercel.app/api/market-data
+- Economic apps = USE FRED API endpoints with working key
+- DON'T use relative URLs (won't work in sandbox)
+- DON'T suggest external APIs (Alpha Vantage, Yahoo Finance, World Bank, etc.)
 - DON'T add axios or other HTTP clients (use built-in fetch)
-- USE backticks (\`) for template literals when building URLs with variables
+- USE backticks for template literals when building URLs with variables
 
 🎯 PLAN PROPER USER INTERFACES:
 - Stock screener = Input field + Submit button + Results table
 - Portfolio tracker = Add/Remove buttons + Stock list + Price updates  
 - Market dashboard = Widget selection + Refresh controls + Data display
+- GDP tracker = Time range selector + Chart display + Current value cards
+- Economic dashboard = Multi-chart grid + Indicator toggles + Time controls
 - ALWAYS include user input handling (forms, buttons, state management)
 - NEVER plan hardcoded variables - plan user interaction flows
+- For economic charts: plan LineChart/AreaChart with proper data fetching
 
 USER REQUEST: "${prompt}"
 
