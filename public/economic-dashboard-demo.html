@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Economic Dashboard - Network Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; background: #f0f0f0; cursor: pointer; border: none; }
+        .tab.active { background: #007cba; color: white; }
+        .chart-container { width: 800px; height: 400px; margin: 20px 0; }
+        .network-info { background: #f9f9f9; padding: 15px; margin: 20px 0; border-left: 4px solid #007cba; }
+        .loading { color: #007cba; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>🏦 Economic Dashboard - Real FRED Data Demo</h1>
+    
+    <div class="network-info">
+        <h3>📡 Network Monitoring Instructions:</h3>
+        <ol>
+            <li>Open Chrome DevTools (F12)</li>
+            <li>Go to the <strong>Network</strong> tab</li>
+            <li>Filter by "fred" to see FRED API calls</li>
+            <li>Click the tabs below to see real API calls</li>
+        </ol>
+        <p><strong>Expected API calls:</strong> <code>/api/fred-data?series=GDP</code>, <code>/api/fred-data?series=UNRATE</code>, etc.</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="loadChart('GDP', 'GDP Tracker')">📈 GDP</button>
+        <button class="tab" onclick="loadChart('UNRATE', 'Unemployment Rate')">👥 Unemployment</button>
+        <button class="tab" onclick="loadChart('CPIAUCSL', 'Inflation (CPI)')">💰 Inflation</button>
+        <button class="tab" onclick="loadChart('FEDFUNDS', 'Federal Funds Rate')">🏛️ Fed Rate</button>
+    </div>
+
+    <div id="status" class="loading">Loading GDP data from FRED...</div>
+    <div class="chart-container">
+        <canvas id="economicChart"></canvas>
+    </div>
+
+    <div id="dataInfo"></div>
+
+    <script>
+        let currentChart = null;
+        const chartColors = {
+            'GDP': 'rgb(54, 162, 235)',
+            'UNRATE': 'rgb(255, 99, 132)', 
+            'CPIAUCSL': 'rgb(255, 205, 86)',
+            'FEDFUNDS': 'rgb(75, 192, 192)'
+        };
+
+        const seriesNames = {
+            'GDP': 'GDP (Billions $)',
+            'UNRATE': 'Unemployment Rate (%)',
+            'CPIAUCSL': 'Consumer Price Index',
+            'FEDFUNDS': 'Federal Funds Rate (%)'
+        };
+
+        async function loadChart(seriesId, title) {
+            // Update active tab
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Show loading
+            document.getElementById('status').innerHTML = `<span class="loading">🔄 Fetching ${title} data from FRED API...</span>`;
+            document.getElementById('dataInfo').innerHTML = '';
+
+            console.log(`🚀 Making API call to: /api/fred-data?series=${seriesId}`);
+            
+            try {
+                const startTime = Date.now();
+                
+                // This is the call you should see in Network tab
+                const response = await fetch(`/api/fred-data?series=${seriesId}&start=2020-01-01&limit=20`);
+                const result = await response.json();
+                
+                const endTime = Date.now();
+                console.log(`✅ API call completed in ${endTime - startTime}ms:`, result);
+
+                if (!result.success) {
+                    throw new Error(result.error);
+                }
+
+                // Update status
+                document.getElementById('status').innerHTML = `✅ Loaded ${result.count} data points from FRED in ${endTime - startTime}ms`;
+                
+                // Show data info
+                document.getElementById('dataInfo').innerHTML = `
+                    <div class="network-info">
+                        <h4>📊 API Response Data:</h4>
+                        <p><strong>Series:</strong> ${seriesId}</p>
+                        <p><strong>Data Points:</strong> ${result.count}</p>
+                        <p><strong>Latest Value:</strong> ${result.data[result.data.length - 1]?.value} (${result.data[result.data.length - 1]?.date})</p>
+                        <p><strong>API Endpoint:</strong> <code>/api/fred-data?series=${seriesId}&start=2020-01-01&limit=20</code></p>
+                    </div>
+                `;
+
+                // Create chart
+                createChart(result.data, seriesId, title);
+
+            } catch (error) {
+                console.error('❌ API Error:', error);
+                document.getElementById('status').innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+
+        function createChart(data, seriesId, title) {
+            const ctx = document.getElementById('economicChart').getContext('2d');
+            
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => new Date(d.date).toLocaleDateString()),
+                    datasets: [{
+                        label: seriesNames[seriesId],
+                        data: data.map(d => d.value),
+                        borderColor: chartColors[seriesId],
+                        backgroundColor: chartColors[seriesId] + '20',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${title} - Real Data from Federal Reserve (FRED)`
+                        },
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: seriesId === 'UNRATE' || seriesId === 'FEDFUNDS',
+                            title: {
+                                display: true,
+                                text: seriesNames[seriesId]
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load GDP by default
+        window.onload = () => loadChart('GDP', 'GDP Tracker');
+    </script>
+</body>
+</html>

@@ -50,30 +50,69 @@ export const appConfig = {
   
   // AI Model Configuration
   ai: {
-    // Default AI model
-    defaultModel: 'moonshotai/kimi-k2-instruct-0905',
+    // Default AI model - using Claude Sonnet 4 via OpenRouter
+    defaultModel: 'openrouter/anthropic/claude-sonnet-4',
+    
+    // Fallback provider
+    fallbackProvider: 'openrouter',
     
     // Available models
     availableModels: [
+      'openrouter/anthropic/claude-sonnet-4',
+      'openrouter/anthropic/claude-3.5-sonnet',
       'openai/gpt-5',
       'moonshotai/kimi-k2-instruct-0905',
       'anthropic/claude-sonnet-4-20250514',
-      'google/gemini-2.0-flash-exp'
+      'google/gemini-2.0-flash-exp',
+      'openrouter/openai/gpt-4-turbo',
+      'openrouter/google/gemma-2-9b-it',
+      'openrouter/meta-llama/llama-3.1-8b-instruct',
+      'openrouter/moonshot/moonshot-v1-8k'
     ],
     
     // Model display names
     modelDisplayNames: {
+      'openrouter/anthropic/claude-sonnet-4': 'Claude Sonnet 4 (OpenRouter)',
+      'openrouter/anthropic/claude-3.5-sonnet': 'Claude 3.5 Sonnet (OpenRouter)',
       'openai/gpt-5': 'GPT-5',
       'moonshotai/kimi-k2-instruct-0905': 'Kimi K2 (Groq)',
       'anthropic/claude-sonnet-4-20250514': 'Sonnet 4',
-      'google/gemini-2.0-flash-exp': 'Gemini 2.0 Flash (Experimental)'
+      'google/gemini-2.0-flash-exp': 'Gemini 2.0 Flash (Experimental)',
+      'openrouter/openai/gpt-4-turbo': 'GPT-4 Turbo (OpenRouter)',
+      'openrouter/google/gemma-2-9b-it': 'Gemma 2 9B (OpenRouter)',
+      'openrouter/meta-llama/llama-3.1-8b-instruct': 'Llama 3.1 8B (OpenRouter)',
+      'openrouter/moonshot/moonshot-v1-8k': 'Moonshot V1 8K (OpenRouter)'
     } as Record<string, string>,
     
     // Model API configuration
     modelApiConfig: {
+      'openrouter/anthropic/claude-sonnet-4': {
+        provider: 'openrouter',
+        model: 'anthropic/claude-sonnet-4'
+      },
       'moonshotai/kimi-k2-instruct-0905': {
         provider: 'groq',
         model: 'moonshotai/kimi-k2-instruct-0905'
+      },
+      'openrouter/anthropic/claude-3.5-sonnet': {
+        provider: 'openrouter',
+        model: 'anthropic/claude-3.5-sonnet'
+      },
+      'openrouter/openai/gpt-4-turbo': {
+        provider: 'openrouter', 
+        model: 'openai/gpt-4-turbo'
+      },
+      'openrouter/google/gemma-2-9b-it': {
+        provider: 'openrouter',
+        model: 'google/gemma-2-9b-it'
+      },
+      'openrouter/meta-llama/llama-3.1-8b-instruct': {
+        provider: 'openrouter',
+        model: 'meta-llama/llama-3.1-8b-instruct'
+      },
+      'openrouter/moonshot/moonshot-v1-8k': {
+        provider: 'openrouter',
+        model: 'moonshot/moonshot-v1-8k'
       }
     },
     

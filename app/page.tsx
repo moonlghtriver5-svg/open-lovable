@@ -85,7 +85,7 @@ export default function HomePage() {
     const inputValue = url.trim();
     
     if (!inputValue) {
-      toast.error("Please enter a URL or search term");
+      toast.error("Please enter a URL or describe what you want to build");
       return;
     }
     
@@ -115,56 +115,12 @@ export default function HomePage() {
       sessionStorage.setItem('autoStart', 'true');
       router.push('/generation');
     } else {
-      // It's a search term, fade out if results exist, then search
-      if (hasSearched && searchResults.length > 0) {
-        setIsFadingOut(true);
-        
-        setTimeout(async () => {
-          setSearchResults([]);
-          setIsFadingOut(false);
-          setShowSelectMessage(true);
-          
-          // Perform new search
-          await performSearch(inputValue);
-          setHasSearched(true);
-          setShowSearchTiles(true);
-          setShowSelectMessage(false);
-          
-          // Smooth scroll to carousel
-          setTimeout(() => {
-            const carouselSection = document.querySelector('.carousel-section');
-            if (carouselSection) {
-              carouselSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }, 300);
-        }, 500);
-      } else {
-        // First search, no fade needed
-        setShowSelectMessage(true);
-        setIsSearching(true);
-        setHasSearched(true);
-        setShowSearchTiles(true);
-        
-        // Scroll to carousel area immediately
-        setTimeout(() => {
-          const carouselSection = document.querySelector('.carousel-section');
-          if (carouselSection) {
-            carouselSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 100);
-        
-        await performSearch(inputValue);
-        setShowSelectMessage(false);
-        setIsSearching(false);
-        
-        // Smooth scroll to carousel
-        setTimeout(() => {
-          const carouselSection = document.querySelector('.carousel-section');
-          if (carouselSection) {
-            carouselSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 300);
-      }
+      // It's a text prompt - go directly to generation without scraping
+      sessionStorage.setItem('textPrompt', inputValue);
+      sessionStorage.setItem('selectedStyle', selectedStyle);
+      sessionStorage.setItem('selectedModel', selectedModel);
+      sessionStorage.setItem('autoStart', 'true');
+      router.push('/generation');
     }
   };
 
@@ -199,11 +155,12 @@ export default function HomePage() {
 
   return (
     <HeaderProvider>
-      <div className="min-h-screen bg-background-base">
+      <div className="min-h-screen bg-slate-900">{/* Dark blue background */}
+        
         {/* Header/Navigation Section */}
         <HeaderDropdownWrapper />
 
-        <div className="sticky top-0 left-0 w-full z-[101] bg-background-base header">
+        <div className="sticky top-0 left-0 w-full z-[101] bg-slate-800 header">{/* Dark blue header */}
           <div className="absolute top-0 cmw-container border-x border-border-faint h-full pointer-events-none" />
           <div className="h-1 bg-border-faint w-full left-0 -bottom-1 absolute" />
           <div className="cmw-container absolute h-full pointer-events-none top-0">
@@ -241,18 +198,7 @@ export default function HomePage() {
             <HomeHeroBackground />
 
             <div className="relative container px-16">
-              <HomeHeroBadge />
               <HomeHeroTitle />
-              <p className="text-center text-body-large">
-                Re-imagine any website, in seconds.
-              </p>
-              <Link
-                className="bg-black-alpha-4 hover:bg-black-alpha-6 rounded-6 px-8 lg:px-6 text-label-large h-30 lg:h-24 block mt-8 mx-auto w-max gap-4 transition-all"
-                href="#"
-                onClick={(e) => e.preventDefault()}
-              >
-                Powered by Firecrawl.
-              </Link>
             </div>
           </div>
 
@@ -344,7 +290,7 @@ export default function HomePage() {
                           <path d="M7 10L9 12L13 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       ) : (
-                        // Search icon for search terms
+                        // Build/Create icon for prompts
                         <svg 
                           width="20" 
                           height="20" 
@@ -353,13 +299,15 @@ export default function HomePage() {
                           xmlns="http://www.w3.org/2000/svg"
                           className="opacity-40 flex-shrink-0"
                         >
-                          <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.5"/>
-                          <path d="M12.5 12.5L16.5 16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          <rect x="3" y="3" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+                          <rect x="12" y="3" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+                          <rect x="3" y="12" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+                          <rect x="12" y="12" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.5"/>
                         </svg>
                       )}
                       <input
-                        className="flex-1 bg-transparent text-body-input text-accent-black placeholder:text-black-alpha-48 focus:outline-none focus:ring-0 focus:border-transparent"
-                        placeholder="Enter URL or search term..."
+                        className="flex-1 bg-transparent text-body-input text-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-0 focus:border-transparent"
+                        placeholder="Describe the app you want to build... (or enter a URL)"
                         type="text"
                         value={url}
                         disabled={isSearching}
@@ -397,7 +345,7 @@ export default function HomePage() {
                       >
                         <HeroInputSubmitButton 
                           dirty={url.length > 0} 
-                          buttonText={isURL(url) ? 'Scrape Site' : 'Search'} 
+                          buttonText={isURL(url) ? 'Scrape Site' : 'Build App'} 
                           disabled={isSearching}
                         />
                       </div>
@@ -406,15 +354,15 @@ export default function HomePage() {
                 </div>
 
 
-                {/* Options Section - Only show when valid URL */}
+                {/* Options Section - Show when there's input */}
                 <div className={`overflow-hidden transition-all duration-500 ease-in-out ${
-                  isValidUrl ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'
+                  url.trim() ? 'max-h-[200px] opacity-100' : 'max-h-0 opacity-0'
                 }`}>
                   <div className="p-[28px]">
                     <div className="border-t border-gray-100 bg-white">
                       {/* Style Selector */}
                       <div className={`mb-2 pt-4 transition-all duration-300 transform ${
-                        isValidUrl ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'
+                        url.trim() ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'
                       }`} style={{ transitionDelay: '100ms' }}>
                         <div className="grid grid-cols-4 gap-1">
                           {styles.map((style, index) => (
@@ -427,7 +375,7 @@ export default function HomePage() {
                                   ? 'border-orange-500 bg-orange-50 text-orange-900' 
                                   : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
                                 }
-                                ${isValidUrl ? 'opacity-100' : 'opacity-0'}
+                                ${url.trim() ? 'opacity-100' : 'opacity-0'}
                               `}
                               style={{
                                 transitionDelay: `${150 + index * 30}ms`,
@@ -442,7 +390,7 @@ export default function HomePage() {
 
                       {/* Model Selector Dropdown and Additional Instructions */}
                       <div className={`flex gap-3 mt-2 pb-4 transition-all duration-300 transform ${
-                        isValidUrl ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'
+                        url.trim() ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'
                       }`} style={{ transitionDelay: '400ms' }}>
                         {/* Model Dropdown */}
                         <select

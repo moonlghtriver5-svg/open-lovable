@@ -3,6 +3,7 @@ import { createGroq } from '@ai-sdk/groq';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { streamText } from 'ai';
 import type { SandboxState } from '@/types/sandbox';
 import { selectFilesForEdit, getFileContents, formatFilesForAI } from '@/lib/context-selector';
@@ -10,6 +11,8 @@ import { executeSearchPlan, formatSearchResultsForAI, selectTargetFile } from '@
 import { FileManifest } from '@/types/file-manifest';
 import type { ConversationState, ConversationMessage, ConversationEdit } from '@/types/conversation';
 import { appConfig } from '@/config/app.config';
+import { EconomicDataDetector } from '@/lib/ai-context/economic-data-context';
+import { StockMarketDetector } from '@/lib/ai-context/stock-market-context';
 
 // Force dynamic route to enable streaming
 export const dynamic = 'force-dynamic';
@@ -43,6 +46,29 @@ const openai = createOpenAI({
   apiKey: process.env.AI_GATEWAY_API_KEY ?? process.env.OPENAI_API_KEY,
   baseURL: isUsingAIGateway ? aiGatewayBaseURL : process.env.OPENAI_BASE_URL,
 });
+
+const openrouter = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
+
+// Fallback provider function
+function getFallbackProvider() {
+  const fallbackProvider = appConfig.ai.fallbackProvider;
+
+  switch (fallbackProvider) {
+    case 'anthropic':
+      return anthropic('claude-3.5-sonnet');
+    case 'openai':
+      return openai('gpt-4-turbo');
+    case 'openrouter':
+      return openrouter('anthropic/claude-sonnet-4');
+    case 'google':
+      return googleGenerativeAI('gemini-2.0-flash-exp');
+    case 'groq':
+    default:
+      return groq('moonshotai/kimi-k2-instruct-0905');
+  }
+}
 
 // Helper function to analyze user preferences from conversation history
 function analyzeUserPreferences(messages: ConversationMessage[]): {
@@ -575,9 +601,52 @@ Remember: You are a SURGEON making a precise incision, not an artist repainting 
           }
         }
         
-        // Build system prompt with conversation awareness
-        const systemPrompt = `You are an expert React developer with perfect memory of the conversation. You maintain context across messages and remember scraped websites, generated components, and applied code. Generate clean, modern React code for Vite applications.
-${conversationContext}
+        // Detect if this is an economic data request
+        const economicContext = EconomicDataDetector.detectEconomicRequest(prompt);
+        
+        if (economicContext.isEconomicRequest) {
+          console.log('[generate-ai-code-stream] Economic data request detected:');
+          console.log('[generate-ai-code-stream] - Keywords:', economicContext.detectedKeywords);
+          console.log('[generate-ai-code-stream] - Suggested FRED series:', economicContext.suggestedSeries);
+          
+          await sendProgress({ 
+            type: 'status', 
+            message: `📈 Economic data request detected: ${economicContext.detectedKeywords.join(', ')}` 
+          });
+        }
+
+        // Detect if this is a stock market request
+        const stockContext = StockMarketDetector.detectStockRequest(prompt);
+        
+        if (stockContext.isStockRequest) {
+          console.log('[generate-ai-code-stream] Stock market request detected:');
+          console.log('[generate-ai-code-stream] - Keywords:', stockContext.detectedKeywords);
+          console.log('[generate-ai-code-stream] - Suggested symbols:', stockContext.suggestedSymbols);
+          
+          await sendProgress({ 
+            type: 'status', 
+            message: `📈 Stock market request detected: ${stockContext.detectedKeywords.join(', ')}` 
+          });
+        }
+        
+        // Build system prompt with conversation awareness, economic context, and stock market context
+        const baseSystemPrompt = `You are an expert React developer with perfect memory of the conversation. You maintain context across messages and remember scraped websites, generated components, and applied code. Generate clean, modern React code for Vite applications.
+${conversationContext}`;
+
+        let systemPrompt = baseSystemPrompt;
+        
+        // Add economic context if detected
+        if (economicContext.isEconomicRequest) {
+          systemPrompt += '\n\n' + economicContext.contextPrompt;
+        }
+        
+        // Add stock market context if detected
+        if (stockContext.isStockRequest) {
+          systemPrompt += '\n\n' + stockContext.contextPrompt;
+        }
+
+        // Add the base system rules
+        const fullSystemPrompt = systemPrompt + `
 
 🚨 CRITICAL RULES - YOUR MOST IMPORTANT INSTRUCTIONS:
 1. **DO EXACTLY WHAT IS ASKED - NOTHING MORE, NOTHING LESS**
@@ -1187,11 +1256,23 @@ CRITICAL: When files are provided in the context:
         const isAnthropic = model.startsWith('anthropic/');
         const isGoogle = model.startsWith('google/');
         const isOpenAI = model.startsWith('openai/');
+        const isOpenRouter = model.startsWith('openrouter/');
         const isKimiGroq = model === 'moonshotai/kimi-k2-instruct-0905';
-        const modelProvider = isAnthropic ? anthropic : 
-                              (isOpenAI ? openai : 
-                              (isGoogle ? googleGenerativeAI : 
-                              (isKimiGroq ? groq : groq)));
+        let modelProvider;
+        if (isAnthropic) {
+          modelProvider = anthropic;
+        } else if (isOpenAI) {
+          modelProvider = openai;
+        } else if (isOpenRouter) {
+          modelProvider = openrouter;
+        } else if (isGoogle) {
+          modelProvider = googleGenerativeAI;
+        } else if (isKimiGroq) {
+          modelProvider = groq;
+        } else {
+          console.log('[generate-ai-code-stream] Using fallback provider:', appConfig.ai.fallbackProvider);
+          modelProvider = getFallbackProvider();
+        }
         
         // Fix model name transformation for different providers
         let actualModel: string;
@@ -1199,6 +1280,9 @@ CRITICAL: When files are provided in the context:
           actualModel = model.replace('anthropic/', '');
         } else if (isOpenAI) {
           actualModel = model.replace('openai/', '');
+        } else if (isOpenRouter) {
+          // OpenRouter models keep their full path
+          actualModel = model.replace('openrouter/', '');
         } else if (isKimiGroq) {
           // Kimi on Groq - use full model string
           actualModel = 'moonshotai/kimi-k2-instruct-0905';
@@ -1209,7 +1293,7 @@ CRITICAL: When files are provided in the context:
           actualModel = model;
         }
 
-        console.log(`[generate-ai-code-stream] Using provider: ${isAnthropic ? 'Anthropic' : isGoogle ? 'Google' : isOpenAI ? 'OpenAI' : 'Groq'}, model: ${actualModel}`);
+        console.log(`[generate-ai-code-stream] Using provider: ${isAnthropic ? 'Anthropic' : isGoogle ? 'Google' : isOpenAI ? 'OpenAI' : isOpenRouter ? 'OpenRouter' : 'Groq'}, model: ${actualModel}`);
         console.log(`[generate-ai-code-stream] AI Gateway enabled: ${isUsingAIGateway}`);
         console.log(`[generate-ai-code-stream] Model string: ${model}`);
 
@@ -1219,7 +1303,7 @@ CRITICAL: When files are provided in the context:
           messages: [
             { 
               role: 'system', 
-              content: systemPrompt + `
+              content: fullSystemPrompt + `
 
 🚨 CRITICAL CODE GENERATION RULES - VIOLATION = FAILURE 🚨:
 1. NEVER truncate ANY code - ALWAYS write COMPLETE files
@@ -1228,6 +1312,12 @@ CRITICAL: When files are provided in the context:
 4. NEVER leave incomplete class names or attributes
 5. ALWAYS close ALL tags, quotes, brackets, and parentheses
 6. If you run out of space, prioritize completing the current file
+
+🏦 ECONOMIC DATA APPS - CRITICAL RULE:
+- ❌ NEVER use sample data arrays like: const data = [{date: '2019-Q1', value: 21.49}...]
+- ✅ ALWAYS use real API calls like: fetch('/api/fred-data?series=GDP&start=2020-01-01')
+- ✅ ALWAYS use useState and useEffect for data fetching
+- ✅ Users must see network requests in browser DevTools when using your app
 
 CRITICAL STRING RULES TO PREVENT SYNTAX ERRORS:
 - NEVER write: className="px-8 py-4 bg-black text-white font-bold neobrut-border neobr...
@@ -1336,7 +1426,7 @@ It's better to have 3 complete files than 10 incomplete files.`
               // Final error, send to user
               await sendProgress({ 
                 type: 'error', 
-                message: `Failed to initialize ${isGoogle ? 'Gemini' : isAnthropic ? 'Claude' : isOpenAI ? 'GPT-5' : isKimiGroq ? 'Kimi (Groq)' : 'Groq'} streaming: ${streamError.message}` 
+                message: `Failed to initialize ${isGoogle ? 'Gemini' : isAnthropic ? 'Claude' : isOpenAI ? 'GPT-5' : isOpenRouter ? 'OpenRouter' : isKimiGroq ? 'Kimi (Groq)' : 'Groq'} streaming: ${streamError.message}` 
               });
               
               // If this is a Google model error, provide helpful info
@@ -1702,6 +1792,8 @@ Provide the complete file content without any truncation. Include all necessary 
                   completionClient = openai;
                 } else if (model.includes('claude')) {
                   completionClient = anthropic;
+                } else if (model.includes('openrouter')) {
+                  completionClient = openrouter;
                 } else if (model === 'moonshotai/kimi-k2-instruct-0905') {
                   completionClient = groq;
                 } else {
@@ -1716,6 +1808,8 @@ Provide the complete file content without any truncation. Include all necessary 
                   completionModelName = model.replace('openai/', '');
                 } else if (model.includes('anthropic')) {
                   completionModelName = model.replace('anthropic/', '');
+                } else if (model.includes('openrouter')) {
+                  completionModelName = model.replace('openrouter/', '');
                 } else if (model.includes('google')) {
                   completionModelName = model.replace('google/', '');
                 } else {

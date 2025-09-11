@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Expected GDP Tracker - Real FRED API</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .loading { color: #007cba; font-style: italic; }
+        .error { color: #d32f2f; }
+        .chart-container { height: 400px; margin: 20px 0; }
+        .api-info { background: #e3f2fd; padding: 15px; margin: 20px 0; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const GDPTracker = () => {
+            // ✅ CORRECT: Real state management for FRED data
+            const [gdpData, setGdpData] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [lastUpdated, setLastUpdated] = useState(null);
+
+            // ✅ CORRECT: Real API call to FRED data
+            useEffect(() => {
+                const fetchGDPData = async () => {
+                    console.log('🚀 Making FRED API call...');
+                    setLoading(true);
+                    setError(null);
+                    
+                    try {
+                        // ✅ THIS IS WHAT THE AI SHOULD GENERATE (NOTE: start date is required!)
+                        const response = await fetch('/api/fred-data?series=GDP&start=2020-01-01&limit=20');
+                        const result = await response.json();
+                        
+                        console.log('✅ FRED API Response:', result);
+                        
+                        if (!result.success) {
+                            throw new Error(result.error || 'Failed to fetch GDP data');
+                        }
+                        
+                        // Transform real FRED data for display
+                        const chartData = result.data.map(item => ({
+                            date: new Date(item.date).toLocaleDateString(),
+                            value: item.value,
+                            rawDate: item.date
+                        }));
+                        
+                        setGdpData(chartData);
+                        setLastUpdated(new Date().toLocaleString());
+                        
+                    } catch (err) {
+                        console.error('❌ FRED API Error:', err);
+                        setError(err.message);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                
+                fetchGDPData();
+            }, []); // Run once on mount
+
+            if (loading) {
+                return (
+                    <div className="container">
+                        <h1>📈 GDP Tracker</h1>
+                        <p className="loading">🔄 Loading GDP data from Federal Reserve (FRED)...</p>
+                    </div>
+                );
+            }
+
+            if (error) {
+                return (
+                    <div className="container">
+                        <h1>📈 GDP Tracker</h1>
+                        <p className="error">❌ Error: {error}</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container">
+                    <h1>📈 GDP Tracker - Real Federal Reserve Data</h1>
+                    
+                    <div className="api-info">
+                        <h3>📊 Real Data Information:</h3>
+                        <p><strong>Data Source:</strong> Federal Reserve Economic Data (FRED)</p>
+                        <p><strong>Series:</strong> GDP (Gross Domestic Product)</p>
+                        <p><strong>Data Points:</strong> {gdpData.length}</p>
+                        <p><strong>Last Updated:</strong> {lastUpdated}</p>
+                        <p><strong>API Endpoint:</strong> <code>/api/fred-data?series=GDP&start=2020-01-01&limit=20</code></p>
+                        <p><strong>Network Tab:</strong> You should see the API call above in DevTools → Network</p>
+                    </div>
+
+                    {gdpData.length > 0 && (
+                        <div>
+                            <h2>GDP Values (Billions of Dollars)</h2>
+                            <div className="chart-container">
+                                <canvas id="gdpChart"></canvas>
+                            </div>
+                            
+                            <div style={{maxHeight: '200px', overflow: 'auto', background: '#f5f5f5', padding: '10px'}}>
+                                <h3>Raw FRED Data:</h3>
+                                <pre>{JSON.stringify(gdpData.slice(0, 5), null, 2)}...</pre>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Render the component
+        ReactDOM.render(<GDPTracker />, document.getElementById('root'));
+
+        // Create chart after data loads
+        setTimeout(() => {
+            const canvas = document.getElementById('gdpChart');
+            if (canvas) {
+                // This would be created with the real data
+                console.log('📊 Chart would be created here with real FRED data');
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

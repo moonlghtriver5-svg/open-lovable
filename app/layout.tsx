@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, Roboto_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
+import { DarkModeProvider } from "@/components/shared/DarkModeProvider";
+import { Toaster } from "sonner";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -26,7 +28,7 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Open Lovable v2",
+  title: "Fast Prototype",
   description: "Re-imagine any website in seconds with AI-powered website builder.",
 };
 
@@ -36,9 +38,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} ${robotoMono.variable} font-sans`}>
-        {children}
+    <html lang="en" className="h-full">
+      <body className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} ${robotoMono.variable} font-sans h-full bg-white dark:bg-gray-900 transition-colors duration-300`}>
+        <DarkModeProvider>
+          {children}
+          <Toaster />
+        </DarkModeProvider>
       </body>
     </html>
   );

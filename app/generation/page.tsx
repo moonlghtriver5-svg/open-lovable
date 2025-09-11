@@ -9,6 +9,7 @@ import HeaderBrandKit from '@/components/shared/header/BrandKit/BrandKit';
 import { HeaderProvider } from '@/components/shared/header/HeaderContext';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import ErrorDetector from '@/components/ErrorDetector';
 // Import icons from centralized module to avoid Turbopack chunk issues
 import { 
   FiFile, 
@@ -159,6 +160,7 @@ function AISandboxPage() {
       
       // Then check session storage as fallback
       const storedUrl = urlParam || sessionStorage.getItem('targetUrl');
+      const storedTextPrompt = sessionStorage.getItem('textPrompt');
       const storedStyle = templateParam || sessionStorage.getItem('selectedStyle');
       const storedModel = sessionStorage.getItem('selectedModel');
       const storedInstructions = sessionStorage.getItem('additionalInstructions');
@@ -212,6 +214,34 @@ function AISandboxPage() {
           // and no screenshot URL is provided
           setHomeContextInput(storedInstructions);
         }
+        
+        if (storedModel) {
+          setAiModel(storedModel);
+        }
+        
+        // Skip the home screen and go directly to builder
+        setShowHomeScreen(false);
+        setHomeScreenFading(false);
+        
+        // Set flag to auto-trigger generation after component updates
+        setShouldAutoGenerate(true);
+        
+        // Also set autoStart flag for the effect
+        sessionStorage.setItem('autoStart', 'true');
+      } else if (storedTextPrompt) {
+        // Handle text prompt (no URL)
+        setHasInitialSubmission(true);
+        
+        // Clear sessionStorage after reading  
+        sessionStorage.removeItem('textPrompt');
+        sessionStorage.removeItem('selectedStyle');
+        sessionStorage.removeItem('selectedModel');
+        sessionStorage.removeItem('additionalInstructions');
+        
+        // Set the prompt as both URL input and context
+        setHomeUrlInput(storedTextPrompt);
+        setHomeContextInput(storedTextPrompt);
+        setSelectedStyle(storedStyle || 'modern');
         
         if (storedModel) {
           setAiModel(storedModel);
@@ -307,11 +337,17 @@ function AISandboxPage() {
   // Start capturing screenshot if URL is provided on mount (from home screen)
   useEffect(() => {
     if (!showHomeScreen && homeUrlInput && !urlScreenshot && !isCapturingScreenshot) {
-      let screenshotUrl = homeUrlInput.trim();
-      if (!screenshotUrl.match(/^https?:\/\//i)) {
-        screenshotUrl = 'https://' + screenshotUrl;
+      // Check if input is a URL or a text prompt
+      const isUrlInput = /^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/i.test(homeUrlInput.trim());
+      
+      // Only capture screenshot for URLs, not text prompts
+      if (isUrlInput) {
+        let screenshotUrl = homeUrlInput.trim();
+        if (!screenshotUrl.match(/^https?:\/\//i)) {
+          screenshotUrl = 'https://' + screenshotUrl;
+        }
+        captureUrlScreenshot(screenshotUrl);
       }
-      captureUrlScreenshot(screenshotUrl);
     }
   }, [showHomeScreen, homeUrlInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1129,8 +1165,8 @@ Tip: I automatically detect and install npm packages from your code imports (lik
         <div className="absolute inset-0 flex overflow-hidden">
           {/* File Explorer - Hide during edits */}
           {!generationProgress.isEdit && (
-            <div className="w-[250px] border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
-            <div className="p-4 bg-gray-100 text-gray-900 flex items-center justify-between">
+            <div className="w-[250px] border-r border-slate-700 bg-slate-800 flex flex-col flex-shrink-0">
+            <div className="p-4 bg-slate-700 text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BsFolderFill style={{ width: '16px', height: '16px' }} />
                 <span className="text-sm font-medium">Explorer</span>
@@ -1142,7 +1178,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
               <div className="text-sm">
                 {/* Root app folder */}
                 <div 
-                  className="flex items-center gap-2 py-0.5 px-3 hover:bg-gray-100 rounded cursor-pointer text-gray-700"
+                  className="flex items-center gap-2 py-0.5 px-3 hover:bg-slate-600 rounded cursor-pointer text-slate-200"
                   onClick={() => toggleFolder('app')}
                 >
                   {expandedFolders.has('app') ? (
@@ -1188,7 +1224,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                         <div key={dir} className="mb-1">
                           {dir && (
                             <div 
-                              className="flex items-center gap-2 py-0.5 px-3 hover:bg-gray-100 rounded cursor-pointer text-gray-700"
+                              className="flex items-center gap-2 py-0.5 px-3 hover:bg-slate-600 rounded cursor-pointer text-slate-200"
                               onClick={() => toggleFolder(dir)}
                             >
                               {expandedFolders.has(dir) ? (
@@ -1265,7 +1301,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                   </div>
                 </div>
                 {generationProgress.thinkingText && (
-                  <div className="bg-purple-950 border border-purple-700 rounded-lg p-4 max-h-48 overflow-y-auto scrollbar-hide">
+                  <div className="bg-slate-950 border border-slate-600 rounded-lg p-4 max-h-48 overflow-y-auto scrollbar-hide">
                     <pre className="text-xs font-mono text-purple-300 whitespace-pre-wrap">
                       {generationProgress.thinkingText}
                     </pre>
@@ -1280,22 +1316,22 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                 {/* Show selected file if one is selected */}
                 {selectedFile ? (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="bg-black border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                      <div className="px-4 py-2 bg-[#36322F] text-white flex items-center justify-between">
+                    <div className="bg-slate-900 border border-slate-600 rounded-lg overflow-hidden shadow-sm">
+                      <div className="px-4 py-2 bg-slate-800 text-white flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {getFileIcon(selectedFile)}
                           <span className="font-mono text-sm">{selectedFile}</span>
                         </div>
                         <button
                           onClick={() => setSelectedFile(null)}
-                          className="hover:bg-black/20 p-1 rounded transition-colors"
+                          className="hover:bg-slate-700 p-1 rounded transition-colors"
                         >
                           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
                       </div>
-                      <div className="bg-gray-900 border border-gray-700 rounded">
+                      <div className="bg-slate-950 border border-slate-700 rounded">
                         <SyntaxHighlighter
                           language={(() => {
                             const ext = selectedFile.split('.').pop()?.toLowerCase();
@@ -1339,7 +1375,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-black border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="bg-slate-900 border border-slate-600 rounded-lg overflow-hidden">
                       <div className="px-4 py-2 bg-gray-100 text-gray-900 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -1383,7 +1419,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                             </span>
                           </div>
                         </div>
-                        <div className="bg-gray-900 border border-gray-700 rounded">
+                        <div className="bg-slate-950 border border-slate-700 rounded">
                           <SyntaxHighlighter
                             language={
                               generationProgress.currentFile.type === 'css' ? 'css' :
@@ -1409,7 +1445,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                     
                     {/* Show completed files */}
                     {generationProgress.files.map((file, idx) => (
-                      <div key={idx} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                      <div key={idx} className="bg-slate-900 border border-slate-600 rounded-lg overflow-hidden">
                         <div className="px-4 py-2 bg-[#36322F] text-white flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="text-green-500">✓</span>
@@ -1450,14 +1486,14 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                     
                     {/* Show remaining raw stream if there's content after the last file */}
                     {!generationProgress.currentFile && generationProgress.streamedCode.length > 0 && (
-                      <div className="bg-black border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="bg-slate-900 border border-slate-600 rounded-lg overflow-hidden">
                         <div className="px-4 py-2 bg-[#36322F] text-white flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                             <span className="font-mono text-sm">Processing...</span>
                           </div>
                         </div>
-                        <div className="bg-gray-900 border border-gray-700 rounded">
+                        <div className="bg-slate-950 border border-slate-700 rounded">
                           <SyntaxHighlighter
                             language="jsx"
                             style={vscDarkPlus}
@@ -1581,14 +1617,23 @@ Tip: I automatically detect and install npm packages from your code imports (lik
               ref={iframeRef}
               src={sandboxData.url}
               className="w-full h-full border-none"
-              title="Open Lovable Sandbox"
+              title="Fast Prototype Sandbox"
               allow="clipboard-write"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
             />
             
+            {/* Error Detection Component */}
+            <ErrorDetector 
+              iframeRef={iframeRef} 
+              onSubmitFix={(errorMessage) => {
+                // Auto-submit the error fix request
+                handleAiChat(errorMessage);
+              }} 
+            />
+            
             {/* Package installation overlay - shows when installing packages or applying code */}
             {codeApplicationState.stage && codeApplicationState.stage !== 'complete' && (
-              <div className="absolute inset-0 bg-white/95 backdrop-blur-sm flex items-center justify-center z-10">
+              <div className="absolute inset-0 bg-slate-900/95 backdrop-blur-sm flex items-center justify-center z-10">
                 <div className="text-center max-w-md">
                   <div className="mb-6">
                     {/* Animated icon based on stage */}
@@ -1664,7 +1709,7 @@ Tip: I automatically detect and install npm packages from your code imports (lik
                   iframeRef.current.src = newSrc;
                 }
               }}
-              className="absolute bottom-4 right-4 bg-white/90 hover:bg-white text-gray-700 p-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105"
+              className="absolute bottom-4 right-4 bg-slate-800/90 hover:bg-slate-800 text-white p-2 rounded-lg shadow-lg transition-all duration-200 hover:scale-105"
               title="Refresh sandbox"
             >
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2629,15 +2674,23 @@ Tip: I automatically detect and install npm packages from your code imports (lik
     // Set loading background to ensure proper visual feedback
     setShowLoadingBackground(true);
     
-    // Clear messages and immediately show the cloning message
+    // Clear messages and show appropriate message
     setChatMessages([]);
-    let displayUrl = homeUrlInput.trim();
-    if (!displayUrl.match(/^https?:\/\//i)) {
-      displayUrl = 'https://' + displayUrl;
+    
+    // Check if input is a URL or a text prompt
+    const isUrlInput = /^(https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/i.test(homeUrlInput.trim());
+    
+    if (isUrlInput) {
+      let displayUrl = homeUrlInput.trim();
+      if (!displayUrl.match(/^https?:\/\//i)) {
+        displayUrl = 'https://' + displayUrl;
+      }
+      // Remove protocol for cleaner display
+      const cleanUrl = displayUrl.replace(/^https?:\/\//i, '');
+      addChatMessage(`Starting to clone ${cleanUrl}...`, 'system');
+    } else {
+      addChatMessage(`Generating app from prompt: "${homeUrlInput.trim()}"...`, 'system');
     }
-    // Remove protocol for cleaner display
-    const cleanUrl = displayUrl.replace(/^https?:\/\//i, '');
-    addChatMessage(`Starting to clone ${cleanUrl}...`, 'system');
     
     // Start creating sandbox and capturing screenshot immediately in parallel
     const sandboxPromise = !sandboxData ? createSandbox(true) : Promise.resolve(null);
@@ -2647,9 +2700,14 @@ Tip: I automatically detect and install npm packages from your code imports (lik
     // Also ensure we're on preview tab to show the loading overlay
     setActiveTab('preview');
     
-    // Always capture screenshot for new URLs, even if sandbox exists
-    // This ensures the loading screen shows properly
-    captureUrlScreenshot(displayUrl);
+    // Only capture screenshot for URLs, not text prompts
+    if (isUrlInput) {
+      let displayUrl = homeUrlInput.trim();
+      if (!displayUrl.match(/^https?:\/\//i)) {
+        displayUrl = 'https://' + displayUrl;
+      }
+      captureUrlScreenshot(displayUrl);
+    }
     
     setTimeout(async () => {
       setShowHomeScreen(false);
@@ -2663,54 +2721,68 @@ Tip: I automatically detect and install npm packages from your code imports (lik
       // Wait for sandbox to be ready (if it's still creating)
       await sandboxPromise;
       
-      // Now start the clone process which will stream the generation
+      // Now start the generation process
       setUrlInput(homeUrlInput);
       setUrlOverlayVisible(false); // Make sure overlay is closed
-      setUrlStatus(['Scraping website content...']);
       
       try {
-        // Scrape the website
-        let url = homeUrlInput.trim();
-        if (!url.match(/^https?:\/\//i)) {
-          url = 'https://' + url;
-        }
-        
-        // Screenshot is already being captured in parallel above
-        
         let scrapeData;
         
-        // Check if we have pre-scraped markdown content from search results
-        const storedMarkdown = sessionStorage.getItem('siteMarkdown');
-        if (storedMarkdown) {
-          // Use the pre-scraped content
+        if (isUrlInput) {
+          // Handle URL scraping
+          setUrlStatus(['Scraping website content...']);
+          let url = homeUrlInput.trim();
+          if (!url.match(/^https?:\/\//i)) {
+            url = 'https://' + url;
+          }
+        
+          // Check if we have pre-scraped markdown content from search results
+          const storedMarkdown = sessionStorage.getItem('siteMarkdown');
+          if (storedMarkdown) {
+            // Use the pre-scraped content
+            scrapeData = {
+              success: true,
+              content: storedMarkdown,
+              title: new URL(url).hostname,
+              source: 'search-result'
+            };
+            sessionStorage.removeItem('siteMarkdown'); // Clear after use
+            addChatMessage('Using cached content from search results...', 'system');
+          } else {
+            // Perform fresh scraping
+            const scrapeResponse = await fetch('/api/scrape-url-enhanced', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url })
+            });
+            
+            if (!scrapeResponse.ok) {
+              throw new Error('Failed to scrape website');
+            }
+            
+            scrapeData = await scrapeResponse.json();
+            
+            if (!scrapeData.success) {
+              throw new Error(scrapeData.error || 'Failed to scrape website');
+            }
+          }
+        } else {
+          // Handle text prompt - no scraping needed
+          setUrlStatus(['Processing your prompt...', 'Generating React app...']);
           scrapeData = {
             success: true,
-            content: storedMarkdown,
-            title: new URL(url).hostname,
-            source: 'search-result'
+            content: homeUrlInput.trim(),
+            title: 'Custom App',
+            source: 'text-prompt'
           };
-          sessionStorage.removeItem('siteMarkdown'); // Clear after use
-          addChatMessage('Using cached content from search results...', 'system');
-        } else {
-          // Perform fresh scraping
-          const scrapeResponse = await fetch('/api/scrape-url-enhanced', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
-          });
-          
-          if (!scrapeResponse.ok) {
-            throw new Error('Failed to scrape website');
-          }
-          
-          scrapeData = await scrapeResponse.json();
-          
-          if (!scrapeData.success) {
-            throw new Error(scrapeData.error || 'Failed to scrape website');
-          }
+          addChatMessage('Processing text prompt for generation...', 'system');
         }
         
-        setUrlStatus(['Website scraped successfully!', 'Generating React app...']);
+        if (isUrlInput) {
+          setUrlStatus(['Website scraped successfully!', 'Generating React app...']);
+        } else {
+          setUrlStatus(['Prompt processed!', 'Generating React app...']);
+        }
         
         // Clear preparing design state and switch to generation tab
         setIsPreparingDesign(false);
@@ -2727,16 +2799,27 @@ Tip: I automatically detect and install npm packages from your code imports (lik
           setActiveTab('generation');
         }, 1500);
         
-        // Store scraped data in conversation context
-        setConversationContext(prev => ({
-          ...prev,
-          scrapedWebsites: [...prev.scrapedWebsites, {
-            url: url,
-            content: scrapeData,
-            timestamp: new Date()
-          }],
-          currentProject: `${url} Clone`
-        }));
+        // Store data in conversation context
+        if (isUrlInput) {
+          let url = homeUrlInput.trim();
+          if (!url.match(/^https?:\/\//i)) {
+            url = 'https://' + url;
+          }
+          setConversationContext(prev => ({
+            ...prev,
+            scrapedWebsites: [...prev.scrapedWebsites, {
+              url: url,
+              content: scrapeData,
+              timestamp: new Date()
+            }],
+            currentProject: `${url} Clone`
+          }));
+        } else {
+          setConversationContext(prev => ({
+            ...prev,
+            currentProject: `Custom App from Prompt`
+          }));
+        }
         
         // Filter out style-related context when using screenshot/URL-based generation
         // Only keep user's explicit instructions, not inherited styles
@@ -2770,7 +2853,15 @@ Tip: I automatically detect and install npm packages from your code imports (lik
           }
         }
         
-        const prompt = `I want to recreate the ${url} website as a complete React application based on the scraped content below.
+        let prompt;
+        
+        if (isUrlInput) {
+          let url = homeUrlInput.trim();
+          if (!url.match(/^https?:\/\//i)) {
+            url = 'https://' + url;
+          }
+          
+          prompt = `I want to recreate the ${url} website as a complete React application based on the scraped content below.
 
 ${JSON.stringify(scrapeData, null, 2)}
 
@@ -2791,6 +2882,28 @@ IMPORTANT INSTRUCTIONS:
 ${filteredContext ? '- Apply the user\'s context/theme requirements throughout the application' : ''}
 
 Focus on the key sections and content, making it clean and modern.`;
+        } else {
+          // Text prompt case
+          prompt = `Create a complete React application based on this description: "${scrapeData.content}"
+
+${filteredContext && filteredContext !== scrapeData.content ? `ADDITIONAL CONTEXT/REQUIREMENTS:
+${filteredContext}
+
+Please incorporate these requirements into the design and implementation.` : ''}
+
+IMPORTANT INSTRUCTIONS:
+- Create a COMPLETE, working React application
+- Use Tailwind CSS for all styling (no custom CSS files)
+- Make it responsive and modern
+- Create proper component structure with Header, main content, and Footer
+- Make sure the app actually renders visible content
+- Create ALL components that you reference in imports
+- Design should be modern, clean, and professional
+- Include realistic content that matches the requested application type
+${filteredContext && filteredContext !== scrapeData.content ? '- Apply the user\'s context/theme requirements throughout the application' : ''}
+
+Be creative and build a fully functional application that fulfills the user's request.`;
+        }
         
         setGenerationProgress(prev => ({
           isGenerating: true,
@@ -3003,15 +3116,26 @@ Focus on the key sections and content, making it clean and modern.`;
           // First application for cloned site should not be in edit mode
           await applyGeneratedCode(generatedCode, false);
           
-          addChatMessage(
-            `Successfully recreated ${url} as a modern React app${homeContextInput ? ` with your requested context: "${homeContextInput}"` : ''}! The scraped content is now in my context, so you can ask me to modify specific sections or add features based on the original site.`, 
-            'ai',
-            {
-              scrapedUrl: url,
-              scrapedContent: scrapeData,
-              generatedCode: generatedCode
-            }
-          );
+          // Only show URL-specific success message for URL-based generations
+          if (isUrlInput && typeof url !== 'undefined') {
+            addChatMessage(
+              `Successfully recreated ${url} as a modern React app${homeContextInput ? ` with your requested context: "${homeContextInput}"` : ''}! The scraped content is now in my context, so you can ask me to modify specific sections or add features based on the original site.`, 
+              'ai',
+              {
+                scrapedUrl: url,
+                scrapedContent: scrapeData,
+                generatedCode: generatedCode
+              }
+            );
+          } else {
+            addChatMessage(
+              `Successfully generated your React app${homeContextInput ? ` with your requested context: "${homeContextInput}"` : ''}! I'm ready to help you modify or enhance it further.`, 
+              'ai',
+              {
+                generatedCode: generatedCode
+              }
+            );
+          }
           
           setConversationContext(prev => ({
             ...prev,
@@ -3052,7 +3176,7 @@ Focus on the key sections and content, making it clean and modern.`;
           setActiveTab('preview');
         }, 1000); // Show completion briefly then switch
       } catch (error: any) {
-        addChatMessage(`Failed to clone website: ${error.message}`, 'system');
+        addChatMessage(`Generation failed: ${error.message}`, 'system');
         setUrlStatus([]);
         setIsPreparingDesign(false);
         setIsStartingNewGeneration(false); // Clear new generation flag on error
@@ -3072,8 +3196,8 @@ Focus on the key sections and content, making it clean and modern.`;
 
   return (
     <HeaderProvider>
-      <div className="font-sans bg-background text-foreground h-screen flex flex-col">
-      <div className="bg-white py-[15px] py-[8px] border-b border-border-faint flex items-center justify-between shadow-sm">
+      <div className="font-sans bg-slate-900 text-white h-screen flex flex-col">
+      <div className="bg-slate-800 py-[15px] py-[8px] border-b border-slate-700 flex items-center justify-between shadow-sm">
         <HeaderBrandKit />
         <div className="flex items-center gap-2">
           {/* Model Selector - Left side */}
@@ -3089,7 +3213,7 @@ Focus on the key sections and content, making it clean and modern.`;
               }
               router.push(`/generation?${params.toString()}`);
             }}
-            className="px-3 py-1.5 text-sm text-gray-900 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-300 transition-colors"
+            className="px-3 py-1.5 text-sm text-white bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:border-slate-500 transition-colors"
           >
             {appConfig.ai.availableModels.map(model => (
               <option key={model} value={model}>
@@ -3099,7 +3223,7 @@ Focus on the key sections and content, making it clean and modern.`;
           </select>
           <button 
             onClick={() => createSandbox()}
-            className="p-8 rounded-lg transition-colors bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100"
+            className="p-8 rounded-lg transition-colors bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
             title="Create new sandbox"
           >
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3108,7 +3232,7 @@ Focus on the key sections and content, making it clean and modern.`;
           </button>
           <button 
             onClick={reapplyLastGeneration}
-            className="p-8 rounded-lg transition-colors bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-8 rounded-lg transition-colors bg-slate-700 border border-slate-600 text-white hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Re-apply last generation"
             disabled={!conversationContext.lastGeneratedCode || !sandboxData}
           >
@@ -3119,7 +3243,7 @@ Focus on the key sections and content, making it clean and modern.`;
           <button 
             onClick={downloadZip}
             disabled={!sandboxData}
-            className="p-8 rounded-lg transition-colors bg-gray-50 border border-gray-200 text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-8 rounded-lg transition-colors bg-slate-700 border border-slate-600 text-white hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Download your Vite app as ZIP"
           >
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3161,7 +3285,7 @@ Focus on the key sections and content, making it clean and modern.`;
           ) : null}
 
           {conversationContext.scrapedWebsites.length > 0 && (
-            <div className="p-4 bg-card border-b border-gray-200">
+            <div className="p-4 bg-slate-800 border-b border-slate-700">
               <div className="flex flex-col gap-4">
                 {conversationContext.scrapedWebsites.map((site, idx) => {
                   // Extract favicon and site info from the scraped data
@@ -3244,7 +3368,7 @@ Focus on the key sections and content, making it clean and modern.`;
                     <div className="block">
                       <div className={`block rounded-[10px] px-14 py-8 ${
                         msg.type === 'user' ? 'bg-[#36322F] text-white ml-auto max-w-[80%]' :
-                        msg.type === 'ai' ? 'bg-gray-100 text-gray-900 mr-auto max-w-[80%]' :
+                        msg.type === 'ai' ? 'bg-slate-800 text-white mr-auto max-w-[80%]' :
                         msg.type === 'system' ? 'bg-[#36322F] text-white text-sm' :
                         msg.type === 'command' ? 'bg-[#36322F] text-white font-mono text-sm' :
                         msg.type === 'error' ? 'bg-red-900 text-red-100 text-sm border border-red-700' :
@@ -3318,8 +3442,8 @@ Focus on the key sections and content, making it clean and modern.`;
                   
                       {/* Show generated files for completion messages - but only if no appliedFiles already shown */}
                       {isGenerationComplete && generationProgress.files.length > 0 && idx === chatMessages.length - 1 && !msg.metadata?.appliedFiles && !chatMessages.some(m => m.metadata?.appliedFiles) && (
-                    <div className="mt-2 inline-block bg-gray-100 rounded-[10px] p-3">
-                      <div className="text-xs font-medium mb-1 text-gray-700">Generated Files:</div>
+                    <div className="mt-2 inline-block bg-slate-700 rounded-[10px] p-3">
+                      <div className="text-xs font-medium mb-1 text-white">Generated Files:</div>
                       <div className="flex flex-wrap items-start gap-1">
                         {generationProgress.files.map((file, fileIdx) => (
                           <div

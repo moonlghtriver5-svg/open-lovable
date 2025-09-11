@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FRED API Integration Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Real FRED Economic Data Test</h1>
+    <canvas id="gdpChart" width="800" height="400"></canvas>
+    
+    <script>
+        // This demonstrates exactly what the AI-generated apps will do
+        async function fetchGDPData() {
+            try {
+                const response = await fetch('/api/fred-data?series=GDP&start=2020-01-01&limit=16');
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error);
+                }
+                
+                console.log('Real GDP data from FRED:', result.data);
+                
+                // Create chart with real data
+                const ctx = document.getElementById('gdpChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: result.data.map(d => d.date),
+                        datasets: [{
+                            label: 'GDP (Billions $)',
+                            data: result.data.map(d => d.value),
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Real US GDP Data (Source: Federal Reserve Economic Data - FRED)'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                title: {
+                                    display: true,
+                                    text: 'GDP in Billions of Dollars'
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error fetching GDP data:', error);
+                document.body.innerHTML += '<p style="color:red;">Error: ' + error.message + '</p>';
+            }
+        }
+        
+        // Load real data on page load
+        fetchGDPData();
+    </script>
+</body>
+</html>
